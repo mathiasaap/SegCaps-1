@@ -26,7 +26,7 @@ from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLRO
 import tensorflow as tf
 
 from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss
-from load_3D_data import load_class_weights, generate_train_batches, generate_val_batches
+from load_brats_data import load_class_weights, generate_train_batches, generate_val_batches
 
 
 def get_loss(root, split, net, recon_wei, choice):
@@ -134,6 +134,9 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
     # Set the callbacks
     callbacks = get_callbacks(args)
+    val_list = train_list
+    args.epochs = 20
+    args.steps_per_epoch = 250
 
     # Training the network
     history = model.fit_generator(
@@ -141,12 +144,12 @@ def train(args, train_list, val_list, u_model, net_input_shape):
                                batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
                                stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data),
         max_queue_size=40, workers=4, use_multiprocessing=False,
-        steps_per_epoch=10000,
+        steps_per_epoch=args.steps_per_epoch,
         validation_data=generate_val_batches(args.data_root_dir, val_list, net_input_shape, net=args.net,
                                              batchSize=args.batch_size,  numSlices=args.slices, subSampAmt=0,
                                              stride=20, shuff=args.shuffle_data),
         validation_steps=500, # Set validation stride larger to see more of the data.
-        epochs=200,
+        epochs=args.epochs,
         callbacks=callbacks,
         verbose=1)
 
