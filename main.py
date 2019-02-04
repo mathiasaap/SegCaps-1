@@ -23,10 +23,12 @@ from keras.utils import print_summary
 
 from load_brats_data import load_data, split_data
 from model_helper import create_model
+import tensorflow as tf
+from keras.backend.tensorflow_backend import set_session
 
 
 def main(args):
-    args.num_splits = 2
+    args.num_splits = 5
     # Ensure training, testing, and manip are not all turned off
     assert (args.train or args.test or args.manip), 'Cannot have train, test, and manip all set to 0, Nothing to do.'
 
@@ -173,5 +175,9 @@ if __name__ == '__main__':
         assert arguments.batch_size >= arguments.gpus, 'Error: Must have at least as many items per batch as GPUs ' \
                                                        'for multi-GPU training. For model parallelism instead of ' \
                                                        'data parallelism, modifications must be made to the code.'
+    config = tf.ConfigProto()
+    config.gpu_options.per_process_gpu_memory_fraction = 0.8
+    config.gpu_options.allow_growth=True
+    set_session(tf.Session(config=config))
 
     main(arguments)
