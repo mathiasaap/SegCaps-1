@@ -30,7 +30,12 @@ K.set_image_data_format('channels_last')
 from keras.utils import print_summary
 
 from load_brats_data import generate_test_batches
+
+
+#args.dataset = 'luna16'
+
 RESOLUTION = 240
+#RESOLUTION = 512
 
 
 def threshold_mask(raw_output, threshold):
@@ -69,6 +74,7 @@ def test(args, test_list, model_list, net_input_shape):
         weights_path = join(args.check_dir, args.output_name + '_model_' + args.time + '.hdf5')
     else:
         weights_path = join(args.data_root_dir, args.weights_path)
+    args.dataset = 'brats'
 
     output_dir = join(args.data_root_dir, 'results', args.net, 'split_' + str(args.split_num))
     raw_out_dir = join(output_dir, 'raw_output')
@@ -95,6 +101,7 @@ def test(args, test_list, model_list, net_input_shape):
         eval_model.load_weights(weights_path)
     except:
         print('Unable to find weights path. Testing with random weights.')
+        assert False
     print_summary(model=eval_model, positions=[.38, .65, .75, 1.])
 
     # Set up placeholders
@@ -128,8 +135,9 @@ def test(args, test_list, model_list, net_input_shape):
         for i, img in enumerate(tqdm(test_list)):
             sitk_img = sitk.ReadImage(join(args.data_root_dir, 'imgs', img[0]))
             img_data = sitk.GetArrayFromImage(sitk_img)
-            #num_slices = img_data.shape[0]
-            num_slices = img_data.shape[1] #brats
+            num_slices = img_data.shape[0]
+            if args.dataset == 'brats':
+                num_slices = img_data.shape[1]#brats
 
             output_array = eval_model.predict_generator(generate_test_batches(args.data_root_dir, [img],
                                                                               net_input_shape,
@@ -141,10 +149,17 @@ def test(args, test_list, model_list, net_input_shape):
                                                         use_multiprocessing=False, verbose=1)
 
             if args.net.find('caps') != -1:
-                output = output_array[0][:,8:-8,8:-8,0]
+                if args.dataset == 'luna16':
+                    output = output_array[0][:,:,:,0]
+                else:
+                    output = output_array[0][:,8:-8,8:-8,0]
                 #recon = output_array[1][:,:,:,0]
             else:
-                output = output_array[:,:,:,0]
+                if args.dataset == 'luna16':
+                    output = output_array[:,:,:,0]
+                else:
+                    output = output_array[:,8:-8,8:-8,0]
+                    
 
             output_img = sitk.GetImageFromArray(output)
             print('Segmenting Output')
@@ -160,47 +175,99 @@ def test(args, test_list, model_list, net_input_shape):
             #output_mask.CopyInformation(sitk_img)
 
             print('Saving Output')
-            sitk.WriteImage(output_img, join(raw_out_dir, img[0][:-7] + '_raw_output' + img[0][-7:]))
-            sitk.WriteImage(output_mask, join(fin_out_dir, img[0][:-7] + '_final_output' + img[0][-7:]))
+            if args.dataset == 'brats':
+                sitk.WriteImage(output_img, join(raw_out_dir, img[0][:-7] + '_raw_output' + img[0][-7:]))
+                sitk.WriteImage(output_mask, join(fin_out_dir, img[0][:-7] + '_final_output' + img[0][-7:]))
 
-            # Load gt mask
-            sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
-            gt_data = sitk.GetArrayFromImage(sitk_mask)
+                # Load gt mask
+                sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
+                gt_data = sitk.GetArrayFromImage(sitk_mask)
 
-            # Plot Qual Figure
-            print('Creating Qualitative Figure for Quick Reference')
-            f, ax = plt.subplots(1, 3, figsize=(15, 5))
+                # Plot Qual Figure
+                print('Creating Qualitative Figure for Quick Reference')
+                f, ax = plt.subplots(2, 3, figsize=(10, 5))
 
-            fileTypeLength = 7
-            
-            img_data = img_data[0]
-            ax[0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
-            ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
-            ax[0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
-            ax[0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
-            ax[0].axis('off')
+                fileTypeLength = 7
 
-            ax[1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
-            ax[1].imshow(output_bin[num_slices // 2, :, :], alpha=0.5, cmap='Blues')
-            ax[1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
-            ax[1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
-            ax[1].axis('off')
+                img_data = img_data[3]
+                ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
+                ax[0,0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
+                ax[0,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
+                ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
+                ax[0,0].axis('off')
 
-            ax[2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-            ax[2].imshow(output_bin[num_slices // 2 + num_slices // 4, :, :], alpha=0.5,
-                         cmap='Blues')
-            ax[2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,
-                         cmap='Reds')
-            ax[2].set_title(
-                'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
-            ax[2].axis('off')
+                ax[0,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
+                ax[0,1].imshow(output_bin[num_slices // 2, :, :], alpha=0.5, cmap='Blues')
+                ax[0,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
+                ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
+                ax[0,1].axis('off')
 
-            fig = plt.gcf()
-            fig.suptitle(img[0][:-fileTypeLength])
+                ax[0,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
+                ax[0,2].imshow(output_bin[num_slices // 2 + num_slices // 4, :, :], alpha=0.5,
+                             cmap='Blues')
+                ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,
+                             cmap='Reds')
+                ax[0,2].set_title(
+                    'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
+                ax[0,2].axis('off')
+                
+                
+                
+                ax[1,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
+                ax[1,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
+                ax[1,0].axis('off')
 
-            plt.savefig(join(fig_out_dir, img[0][:-fileTypeLength] + '_qual_fig' + '.png'),
-                        format='png', bbox_inches='tight')
-            plt.close('all')   
+                ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
+                ax[1,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
+                ax[1,1].axis('off')
+
+                ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
+                ax[1,2].set_title(
+                    'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
+                ax[1,2].axis('off')
+
+                fig = plt.gcf()
+                fig.suptitle(img[0][:-fileTypeLength])
+
+                plt.savefig(join(fig_out_dir, img[0][:-fileTypeLength] + '_qual_fig' + '.png'),
+                            format='png', bbox_inches='tight')
+                plt.close('all')
+            else:
+                sitk.WriteImage(output_img, join(raw_out_dir, img[0][:-4] + '_raw_output' + img[0][-4:]))
+                sitk.WriteImage(output_mask, join(fin_out_dir, img[0][:-4] + '_final_output' + img[0][-4:]))
+
+                # Load gt mask
+                sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
+                gt_data = sitk.GetArrayFromImage(sitk_mask)
+                
+                f, ax = plt.subplots(1, 3, figsize=(15, 5))
+
+                ax[0].imshow(img_data[img_data.shape[0] // 3, :, :], alpha=1, cmap='gray')
+                ax[0].imshow(output_bin[img_data.shape[0] // 3, :, :], alpha=0.5, cmap='Reds')
+                #ax[0].imshow(gt_data[img_data.shape[0] // 3, :, :], alpha=0.2, cmap='Reds')
+                ax[0].set_title('Slice {}/{}'.format(img_data.shape[0] // 3, img_data.shape[0]))
+                ax[0].axis('off')
+
+                ax[1].imshow(img_data[img_data.shape[0] // 2, :, :], alpha=1, cmap='gray')
+                ax[1].imshow(output_bin[img_data.shape[0] // 2, :, :], alpha=0.5, cmap='Reds')
+                #ax[1].imshow(gt_data[img_data.shape[0] // 2, :, :], alpha=0.2, cmap='Reds')
+                ax[1].set_title('Slice {}/{}'.format(img_data.shape[0] // 2, img_data.shape[0]))
+                ax[1].axis('off')
+
+                ax[2].imshow(img_data[img_data.shape[0] // 2 + img_data.shape[0] // 4, :, :], alpha=1, cmap='gray')
+                ax[2].imshow(output_bin[img_data.shape[0] // 2 + img_data.shape[0] // 4, :, :], alpha=0.5,
+                             cmap='Reds')
+                #ax[2].imshow(gt_data[img_data.shape[0] // 2 + img_data.shape[0] // 4, :, :], alpha=0.2,
+                #             cmap='Reds')
+                ax[2].set_title(
+                    'Slice {}/{}'.format(img_data.shape[0] // 2 + img_data.shape[0] // 4, img_data.shape[0]))
+                ax[2].axis('off')
+
+                fig = plt.gcf()
+                fig.suptitle(img[0][:-4])
+
+                plt.savefig(join(fig_out_dir, img[0][:-4] + '_qual_fig' + '.png'),
+                            format='png', bbox_inches='tight')
 
 
             row = [img[0][:-4]]

@@ -41,9 +41,10 @@ def main(args):
         train_list, val_list, test_list = load_data(args.data_root_dir, args.split_num)
 
     # Get image properties from first image. Assume they are all the same.
+    print(train_list)
     img_shape = sitk.GetArrayFromImage(sitk.ReadImage(join(args.data_root_dir, 'imgs', train_list[0][0]))).shape
-    #net_input_shape = (img_shape[1], img_shape[2], args.slices)
-    net_input_shape = (256, 256, args.slices)
+    net_input_shape = (img_shape[1], img_shape[2], args.slices)
+    net_input_shape = (256, 256, args.slices * 4)
 
     # Create the model for training/testing/manipulation
     model_list = create_model(args=args, input_shape=net_input_shape)

@@ -44,6 +44,7 @@ def load_data(root, split):
     with open(join(root, 'split_lists', 'test_split_' + str(split) + '.csv'), 'rb') as f:
         reader = csv.reader(f)
         testing_list = list(reader)
+    print(training_list)
 
     new_training_list, validation_list = train_test_split(training_list, test_size=0.1, random_state=7)
 

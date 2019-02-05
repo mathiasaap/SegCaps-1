@@ -129,26 +129,70 @@ def plot_training(training_history, arguments):
     f.savefig(join(arguments.output_dir, arguments.output_name + '_plots_' + arguments.time + '.png'))
     plt.close()
 
+DEBUG = False
 def train(args, train_list, val_list, u_model, net_input_shape):
     # Compile the loaded model
     model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
     # Set the callbacks
     callbacks = get_callbacks(args)
-    val_list = train_list
-    args.epochs = 20
-    args.steps_per_epoch = 250
+    #val_list = train_list
+    args.epochs = 200
+    args.steps_per_epoch = 500
+    
+    
+    if DEBUG:
+        batch_gen = generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
+                                   batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
+                                   stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data)
+
+        for batch in batch_gen:
+            imgs, masks = batch[0]
+            single_img = imgs[0]
+            single_mask = masks[0]
+            print(imgs.shape)
+            break
+
+
+        f, ax = plt.subplots(1, 2, figsize=(15, 5))
+
+        ax[0].imshow(single_img[:, :, 0], alpha=1, cmap='gray')
+        #ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
+        #ax[0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
+        ax[0].set_title('Img')
+        ax[0].axis('off')
+
+        ax[1].imshow(single_mask[:, :, 0], alpha=1, cmap='gray')
+        #ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
+        #ax[0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
+        ax[1].set_title('Img')
+        ax[1].axis('off')
+
+        #ax[1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
+        #ax[1].imshow(output_bin[num_slices // 2, :, :], alpha=0.5, cmap='Blues')
+        #ax[1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
+        #ax[1].set_title('Mask')
+        #ax[1].axis('off')
+
+        fig = plt.gcf()
+        fig.suptitle("Input image and mask")
+
+        plt.savefig(join("figz/", 'img_mask_fig' + '.png'),
+                    format='png', bbox_inches='tight')
+        plt.close('all')  
+
+        assert False
 
     # Training the network
     history = model.fit_generator(
         generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
                                stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data),
-        max_queue_size=40, workers=4, use_multiprocessing=False,
+        max_queue_size=60, workers=12, use_multiprocessing=False,
         steps_per_epoch=args.steps_per_epoch,
         validation_data=generate_val_batches(args.data_root_dir, val_list, net_input_shape, net=args.net,
                                              batchSize=args.batch_size,  numSlices=args.slices, subSampAmt=0,
                                              stride=20, shuff=args.shuffle_data),
-        validation_steps=500, # Set validation stride larger to see more of the data.
+        validation_steps=150, # Set validation stride larger to see more of the data.
         epochs=args.epochs,
         callbacks=callbacks,
         verbose=1)

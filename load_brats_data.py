@@ -258,8 +258,8 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
         img = np.clip(img, + brats_min, brats_max)
         img = (img - brats_min) / (brats_max - brats_min)
         
-        img = img[:, :, :, 0] # Select only flair during initial testing
-        
+        #img = img[:, :, :, 3] # Select only t1w during initial testing
+        #img = (img-img.mean())/img.std()
         
         
         if not no_masks:
@@ -272,21 +272,22 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
             
 
         try:
+            show_modal = 3
             f, ax = plt.subplots(1, 3, figsize=(15, 5))
 
-            ax[0].imshow(img[:, :, img.shape[2] // 3], cmap='gray')
+            ax[0].imshow(img[:, :, img.shape[2] // 3, show_modal], cmap='gray')
             if not no_masks:
                 ax[0].imshow(mask[:, :, img.shape[2] // 3], alpha=0.40, cmap='Reds')
             ax[0].set_title('Slice {}/{}'.format(img.shape[2] // 3, img.shape[2]))
             ax[0].axis('off')
 
-            ax[1].imshow(img[:, :, img.shape[2] // 2], cmap='gray')
+            ax[1].imshow(img[:, :, img.shape[2] // 2, show_modal], cmap='gray')
             if not no_masks:
                 ax[1].imshow(mask[:, :, img.shape[2] // 2], alpha=0.40, cmap='Reds')
             ax[1].set_title('Slice {}/{}'.format(img.shape[2] // 2, img.shape[2]))
             ax[1].axis('off')
 
-            ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4], cmap='gray')
+            ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4, show_modal], cmap='gray')
             if not no_masks:
                 ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4], alpha=0.40, cmap='Reds')
             ax[2].set_title('Slice {}/{}'.format(img.shape[2] // 2 + img.shape[2] // 4, img.shape[2]))
@@ -294,7 +295,7 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
 
             fig = plt.gcf()
             fig.suptitle(fname)
-
+            print("save qual fig")
             plt.savefig(join(fig_path, fname + '.png'), format='png', bbox_inches='tight')
             plt.close(fig)
         except Exception as e:
@@ -330,7 +331,10 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    mask_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.uint8)
+    
+    mask_net_shape = net_input_shape
+    mask_shape = [net_input_shape[0],net_input_shape[1], net_input_shape[2] // 4]
+    mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.uint8)
 
     while True:
         if shuff:
@@ -361,17 +365,17 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             indicies = np.arange(0, train_img.shape[2] - numSlices * (subSampAmt + 1) + 1, stride)
             if shuff:
                 shuffle(indicies)
-
             for j in indicies:
                 if not np.any(train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]):
                     continue
                 if img_batch.ndim == 4:
-                    img_batch[count, 8:-8, 8:-8, :] = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    next_img = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1, :].reshape(240, 240, -1)
+                    img_batch[count, 8:-8, 8:-8, :] = next_img
                     mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                    img_batch[count, :, :, :, 0] = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
-                    mask_batch[count, :, :, :, 0] = train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    img_batch[count, 8:-8, 8:-8, :, :] = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    mask_batch[count, 8:-8, 8:-8, :, :] = train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -410,7 +414,9 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                          stride=1, downSampAmt=1, shuff=1):
     # Create placeholders for validation
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    mask_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.uint8)
+    mask_net_shape = net_input_shape
+    mask_shape = [net_input_shape[0],net_input_shape[1], net_input_shape[2] // 4]
+    mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.uint8)
 
     while True:
         if shuff:
@@ -445,12 +451,13 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 if not np.any(val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]):
                     continue
                 if img_batch.ndim == 4:
-                    img_batch[count, 8:-8, 8:-8 :] = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    next_img = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1, :].reshape(240, 240, -1)
+                    img_batch[count, 8:-8, 8:-8, :] = next_img
                     mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                    img_batch[count, :, :, :, 0] = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
-                    mask_batch[count, :, :, :, 0] = val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    img_batch[count, 8:-8, 8:-8, :, :] = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    mask_batch[count, 8:-8, 8:-8, :, :] = val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -483,11 +490,13 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         try:
             scan_name = scan_name[0]
             path_to_np = join(root_path,'np_files',basename(scan_name)[:-6]+'npz')
+            print(path_to_np)
             with np.load(path_to_np) as data:
                 test_img = data['img']
-        except:
+        except Exception as err:
+            print(err)
             print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-            test_img = convert_data_to_numpy(root_path, scan_name, no_masks=True)
+            test_img = convert_data_to_numpy(root_path, scan_name, no_masks=False)[0]
             if np.array_equal(test_img,np.zeros(1)):
                 continue
             else:
@@ -503,10 +512,11 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         indicies = np.arange(0, test_img.shape[2] - numSlices * (subSampAmt + 1) + 1, stride)
         for j in indicies:
             if img_batch.ndim == 4:
-                img_batch[count, 8:-8, 8:-8, :] = test_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                next_img = test_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1, :].reshape(240, 240, -1)
+                img_batch[count, 8:-8, 8:-8, :] = next_img
             elif img_batch.ndim == 5:
                 # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                img_batch[count, :, :, :, 0] = test_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                img_batch[count, 8:-8, 8:-8, :, :] = test_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
             else:
                 print('Error this function currently only supports 2D and 3D data.')
                 exit(0)
