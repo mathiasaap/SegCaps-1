@@ -369,8 +369,12 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 if not np.any(train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]):
                     continue
                 if img_batch.ndim == 4:
+                    
+                    img_batch[count] = 0
+                    mask_batch[count] = 0
                     next_img = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1, :].reshape(240, 240, -1)
                     img_batch[count, 8:-8, 8:-8, :] = next_img
+
                     mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.

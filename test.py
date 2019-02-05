@@ -100,8 +100,7 @@ def test(args, test_list, model_list, net_input_shape):
     try:
         eval_model.load_weights(weights_path)
     except:
-        print('Unable to find weights path. Testing with random weights.')
-        assert False
+        assert False, 'Unable to find weights path. Testing with random weights.'
     print_summary(model=eval_model, positions=[.38, .65, .75, 1.])
 
     # Set up placeholders
