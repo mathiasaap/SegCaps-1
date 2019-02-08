@@ -11,19 +11,21 @@ This file contains the definitions of custom loss functions not present in the d
 
 import tensorflow as tf
 
-def multiclass_dice(out, y, axis=(1,2,3,4)):
+def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
+    if from_logits:
+        out = tf.nn.softmax(out, axis=3)
     
     eps = 1e-5
     intersection = tf.reduce_sum(out * y, axis=axis)
     union = eps + tf.reduce_sum(out*out, axis=axis) + tf.reduce_sum(y*y, axis=axis)
     entropy = ( ( (2 * intersection) + eps) / (union))
-    return -tf.reduce_mean(entropy) # return -tf.reduce_mean(entropy) works without softmax and oneHot2LabelMin
+    return tf.reduce_mean(entropy) # return -tf.reduce_mean(entropy) works without softmax and oneHot2LabelMin
 
 def multiclass_dice_loss(out, y, from_logits=False):
-    return -multiclass_dice(out, y, axis=(1,2,3)) #  1-multiclass_dice(out, y, axis=(1,2,3))# return -multiclass_dice works without softmax and oneHot2LabelMin
+    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = True) #  1-multiclass_dice(out, y, axis=(1,2,3))# return -multiclass_dice works without softmax and oneHot2LabelMin
 
 def multiclass_dice_score(out, y, from_logits=False):
-    return multiclass_dice(out, y, axis=(1,2,3))
+    return multiclass_dice(out, y, axis=(1,2,3), from_logits = True)
 
 def dice_soft(y_true, y_pred, loss_type='sorensen', axis=[1,2,3], smooth=1e-5, from_logits=False):
     """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity

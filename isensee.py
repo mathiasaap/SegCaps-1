@@ -98,11 +98,8 @@ def ResidualUnet2D(input_shape, out_classes):
     def createSigmoid(out):
         return sigmoid(out)
     
-    if out_classes > 1:
-        pass
-        # out = Lambda(createSoftmax)(out)  TODO: fix softmax
-    else:
-        out = Lambda(createSigmoid)(out)
+    if out_classes == 1:
+        out = Lambda(createSigmoid)(out) # Does this work?
 
     model = Model(inputs=[x], outputs=[out])
     return model

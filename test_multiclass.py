@@ -137,7 +137,7 @@ def test(args, test_list, model_list, net_input_shape):
                 else:
                     output = output_array[:,8:-8,8:-8,:]
                 print(output)
-                output = oneHot2LabelMin(output)
+                output = oneHot2LabelMax(output)
                 
             print(output.shape)
             
