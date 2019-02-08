@@ -36,7 +36,7 @@ def localizationModule(input, level, filters):
     return layer, ds
 
 def segmentationLayer(inputLayer, out_classes):
-    layer = Conv2D(filters = out_classes, kernel_size = 1, strides = 1, kernel_initializer = 'he_normal', padding = 'same', kernel_regularizer=regularizers.l2(100))(inputLayer)
+    layer = Conv2D(filters = out_classes, kernel_size = 1, strides = 1, kernel_initializer = 'he_normal', padding = 'same')(inputLayer)
     return layer
 
 def pixel_wise_softmax(output_map):
