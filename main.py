@@ -21,14 +21,18 @@ time = strftime("%Y-%m-%d-%H:%M:%S", gmtime())
 
 from keras.utils import print_summary
 
-from load_brats_data import load_data, split_data
+from load_brats_data_multiclass import load_data, split_data
 from model_helper import create_model
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 
 
 def main(args):
-    args.num_splits = 5
+    args.num_splits = 2
+    args.out_classes = 4
+    args.epochs = 1
+    args.steps_per_epoch = 1000
+    args.dataset = 'brats'
     # Ensure training, testing, and manip are not all turned off
     assert (args.train or args.test or args.manip), 'Cannot have train, test, and manip all set to 0, Nothing to do.'
 
@@ -44,7 +48,8 @@ def main(args):
     print(train_list)
     img_shape = sitk.GetArrayFromImage(sitk.ReadImage(join(args.data_root_dir, 'imgs', train_list[0][0]))).shape
     net_input_shape = (img_shape[1], img_shape[2], args.slices)
-    net_input_shape = (256, 256, args.slices * 4)
+    if args.dataset == 'brats':
+        net_input_shape = (256, 256, args.slices * 4)
 
     # Create the model for training/testing/manipulation
     model_list = create_model(args=args, input_shape=net_input_shape)
@@ -87,9 +92,13 @@ def main(args):
         train(args, train_list, val_list, model_list[0], net_input_shape)
 
     if args.test:
-        from test import test
-        # Run testing
-        test(args, test_list, model_list, net_input_shape)
+        if args.dataset == 'brats':
+            from test_multiclass import test
+            test(args, test_list, model_list, net_input_shape)
+        else:
+            from test import test
+            # Run testing
+            test(args, test_list, model_list, net_input_shape)
 
     if args.manip:
         from manip import manip
@@ -106,7 +115,7 @@ if __name__ == '__main__':
     parser.add_argument('--split_num', type=int, default=0,
                         help='Which training split to train/test on.')
     parser.add_argument('--net', type=str.lower, default='segcapsr3',
-                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'unet', 'tiramisu'],
+                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'unet', 'tiramisu', 'isensee'],
                         help='Choose your network.')
     parser.add_argument('--train', type=int, default=1, choices=[0,1],
                         help='Set to 1 to enable training.')
@@ -118,7 +127,7 @@ if __name__ == '__main__':
                         help='Whether or not to shuffle the training data (both per epoch and in slice order.')
     parser.add_argument('--aug_data', type=int, default=1, choices=[0,1],
                         help='Whether or not to use data augmentation during training.')
-    parser.add_argument('--loss', type=str.lower, default='w_bce', choices=['bce', 'w_bce', 'dice', 'mar', 'w_mar'],
+    parser.add_argument('--loss', type=str.lower, default='w_bce', choices=['bce', 'w_bce', 'dice', 'mar', 'w_mar', 'multi_dice'],
                         help='Which loss to use. "bce" and "w_bce": unweighted and weighted binary cross entropy'
                              '"dice": soft dice coefficient, "mar" and "w_mar": unweighted and weighted margin loss.')
     parser.add_argument('--batch_size', type=int, default=1,

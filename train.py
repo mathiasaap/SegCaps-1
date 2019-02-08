@@ -25,8 +25,8 @@ from keras.utils.training_utils import multi_gpu_model
 from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard
 import tensorflow as tf
 
-from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss
-from load_brats_data import load_class_weights, generate_train_batches, generate_val_batches
+from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score
+from load_brats_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
 def get_loss(root, split, net, recon_wei, choice):
@@ -37,6 +37,8 @@ def get_loss(root, split, net, recon_wei, choice):
         loss = 'binary_crossentropy'
     elif choice == 'dice':
         loss = dice_loss
+    elif choice == 'multi_dice':
+        loss = multiclass_dice_loss
     elif choice == 'w_mar':
         pos_class_weight = load_class_weights(root=root, split=split)
         loss = margin_loss(margin=0.4, downweight=0.5, pos_weight=pos_class_weight)
@@ -54,7 +56,10 @@ def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
         monitor_name = 'val_out_seg_dice_hard'
     else:
-        monitor_name = 'val_dice_hard'
+        if "multi" in arguments.loss:
+            monitor_name = 'val_multiclass_dice_score'
+        else:
+            monitor_name = 'val_dice_hard'
 
     csv_logger = CSVLogger(join(arguments.log_dir, arguments.output_name + '_log_' + arguments.time + '.csv'), separator=',')
     tb = TensorBoard(arguments.tf_log_dir, batch_size=arguments.batch_size, histogram_freq=0)
@@ -72,7 +77,10 @@ def compile_model(args, net_input_shape, uncomp_model):
     if args.net.find('caps') != -1:
         metrics = {'out_seg': dice_hard}
     else:
-        metrics = [dice_hard]
+        if "multi" in args.loss:
+            metrics = [multiclass_dice_score]
+        else:
+            metrics = [dice_hard]
 
     loss, loss_weighting = get_loss(root=args.data_root_dir, split=args.split_num, net=args.net,
                                     recon_wei=args.recon_wei, choice=args.loss)
@@ -99,8 +107,13 @@ def plot_training(training_history, arguments):
         ax1.plot(training_history.history['out_seg_dice_hard'])
         ax1.plot(training_history.history['val_out_seg_dice_hard'])
     else:
-        ax1.plot(training_history.history['dice_hard'])
-        ax1.plot(training_history.history['val_dice_hard'])
+        if "multi" in arguments.loss:
+            ax1.plot(training_history.history['multiclass_dice_score'])
+            ax1.plot(training_history.history['val_multiclass_dice_score'])
+        else:
+            ax1.plot(training_history.history['dice_hard'])
+            ax1.plot(training_history.history['val_dice_hard'])
+        
     ax1.set_title('Dice Coefficient')
     ax1.set_ylabel('Dice', fontsize=12)
     ax1.legend(['Train', 'Val'], loc='upper left')
@@ -136,20 +149,20 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     # Set the callbacks
     callbacks = get_callbacks(args)
     #val_list = train_list
-    args.epochs = 200
-    args.steps_per_epoch = 500
+
     
     
     if DEBUG:
         batch_gen = generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                    batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
                                    stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data)
-
+        #import random
         for batch in batch_gen:
-            imgs, masks = batch[0]
+            imgs, masks = batch
             single_img = imgs[0]
             single_mask = masks[0]
             print(imgs.shape)
+            #if random.randint(0,1) > 0.9:
             break
 
 
@@ -178,7 +191,14 @@ def train(args, train_list, val_list, u_model, net_input_shape):
 
         plt.savefig(join("figz/", 'img_mask_fig' + '.png'),
                     format='png', bbox_inches='tight')
-        plt.close('all')  
+        plt.close('all') 
+        
+        for line in range(single_mask.shape[0]):
+            for col in range(single_mask.shape[1]):
+                print(single_mask[line,col], end=" ")
+            print("")
+        print(single_mask.shape)
+        #print(single_mask)
 
         assert False
 

@@ -215,6 +215,8 @@ def threadsafe_generator(f):
 
 mean = np.array([18.426106306720985, 24.430354760142666, 24.29803657467962, 19.420110564555472])
 std = np.array([104.02684046042094, 136.06477850668273, 137.4833895418739, 109.29833288911334])
+one_hot_max = 1.0 # Value of positive class in one hot
+
 
 def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
     fname = img_name[:-7]
@@ -266,9 +268,18 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
             itk_mask = sitk.ReadImage(join(mask_path, img_name))
             mask = sitk.GetArrayFromImage(itk_mask)
             mask = np.rollaxis(mask, 0, 3)
-            mask[mask < 0.5] = 0 # Background
-            mask[mask > 0.5] = 1 # Edema, Enhancing and Non enhancing tumor
-            mask = mask.astype(np.uint8)
+            #mask[mask < 0.5] = 0 # Background
+            #mask[mask > 0.5] = 1 # Edema, Enhancing and Non enhancing tumor
+            
+            label = mask.astype(np.int64)
+            masks = np.eye(4)[label]
+            print("Created mask shape: {}".format(masks.shape))
+            #mask = masks.astype(np.float32)
+            
+            masks[masks>0.5] = one_hot_max
+            masks[masks<0.5] = 1-one_hot_max
+            mask = masks
+            #mask = masks.astype(np.uint8)
             
 
         try:
@@ -333,9 +344,9 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     
     mask_net_shape = net_input_shape
-    mask_shape = [net_input_shape[0],net_input_shape[1], net_input_shape[2] // 4]
-    mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.uint8)
-
+    mask_shape = [net_input_shape[0],net_input_shape[1], 4]
+    mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
+    mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
     while True:
         if shuff:
             shuffle(train_list)
@@ -355,6 +366,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     continue
                 else:
                     print('\nFinished making npz file.')
+            #print("Train mask shape {}".format(train_mask.shape))
 
             if numSlices == 1:
                 subSampAmt = 0
@@ -371,15 +383,17 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 if img_batch.ndim == 4:
                     
                     img_batch[count] = 0
-                    mask_batch[count] = 0
+                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
                     next_img = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1].reshape(240, 240, -1)
                     img_batch[count, 8:-8, 8:-8, :] = next_img
 
-                    mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
+                    img_batch[count] = 0
+                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
                     img_batch[count, 8:-8, 8:-8, :, :] = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
-                    mask_batch[count, 8:-8, 8:-8, :, :] = train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    mask_batch[count, 8:-8, 8:-8, :, :] = train_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -419,8 +433,9 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
     # Create placeholders for validation
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     mask_net_shape = net_input_shape
-    mask_shape = [net_input_shape[0],net_input_shape[1], net_input_shape[2] // 4]
-    mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.uint8)
+    mask_shape = [net_input_shape[0],net_input_shape[1], 4]
+    mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
+    mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
 
     while True:
         if shuff:
@@ -455,13 +470,17 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 if not np.any(val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]):
                     continue
                 if img_batch.ndim == 4:
+                    img_batch[count] = 0
+                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
                     next_img = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1].reshape(240, 240, -1)
                     img_batch[count, 8:-8, 8:-8, :] = next_img
-                    mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
+                    img_batch[count] = 0
+                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
                     img_batch[count, 8:-8, 8:-8, :, :] = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
-                    mask_batch[count, 8:-8, 8:-8, :, :] = val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    mask_batch[count, 8:-8, 8:-8, :, :] = val_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -512,7 +531,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
             np.random.seed(None)
             subSampAmt = int(rand(1)*(test_img.shape[2]*0.05))
 
-        print(test_img.shape)
+        #print(test_img.shape)
         indicies = np.arange(0, test_img.shape[2] - numSlices * (subSampAmt + 1) + 1, stride)
         for j in indicies:
             if img_batch.ndim == 4:

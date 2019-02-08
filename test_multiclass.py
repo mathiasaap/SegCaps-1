@@ -29,43 +29,17 @@ from keras import backend as K
 K.set_image_data_format('channels_last')
 from keras.utils import print_summary
 
-from load_3D_data import generate_test_batches
 
-
-#args.dataset = 'luna16'
-
-
-
+from load_brats_data_multiclass import generate_test_batches
+from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def threshold_mask(raw_output, threshold):
-    if threshold == 0:
-        try:
-            threshold = filters.threshold_otsu(raw_output)
-        except:
-            threshold = 0.5
 
-    print('\tThreshold: {}'.format(threshold))
+    raw_output[raw_output > 0.5] = 1
+    raw_output[raw_output < 0.5] = 0
 
-    raw_output[raw_output > threshold] = 1
-    raw_output[raw_output < 1] = 0
 
-    all_labels = measure.label(raw_output)
-    props = measure.regionprops(all_labels)
-    props.sort(key=lambda x: x.area, reverse=True)
-    thresholded_mask = np.zeros(raw_output.shape)
-
-    if len(props) >= 2:
-        if props[0].area / props[1].area > 5:  # if the largest is way larger than the second largest
-            thresholded_mask[all_labels == props[0].label] = 1  # only turn on the largest component
-        else:
-            thresholded_mask[all_labels == props[0].label] = 1  # turn on two largest components
-            thresholded_mask[all_labels == props[1].label] = 1
-    elif len(props):
-        thresholded_mask[all_labels == props[0].label] = 1
-
-    thresholded_mask = scipy.ndimage.morphology.binary_fill_holes(thresholded_mask).astype(np.uint8)
-
-    return thresholded_mask
+    return raw_output
 
 
 def test(args, test_list, model_list, net_input_shape):
@@ -74,7 +48,7 @@ def test(args, test_list, model_list, net_input_shape):
     else:
         weights_path = join(args.data_root_dir, args.weights_path)
     
-    if args.dataset == 'brats:
+    if args.dataset == 'brats':
         RESOLUTION = 240
     else:
         RESOLUTION = 512
@@ -143,12 +117,13 @@ def test(args, test_list, model_list, net_input_shape):
 
             output_array = eval_model.predict_generator(generate_test_batches(args.data_root_dir, [img],
                                                                               net_input_shape,
-                                                                              batchSize=args.batch_size,
+                                                                              batchSize=1,
                                                                               numSlices=args.slices,
                                                                               subSampAmt=0,
                                                                               stride=1),
                                                         steps=num_slices, max_queue_size=1, workers=1,
                                                         use_multiprocessing=False, verbose=1)
+            
 
             if args.net.find('caps') != -1:
                 if args.dataset == 'luna16':
@@ -158,9 +133,17 @@ def test(args, test_list, model_list, net_input_shape):
                 #recon = output_array[1][:,:,:,0]
             else:
                 if args.dataset == 'luna16':
-                    output = output_array[:,:,:,0]
+                    output = output_array[:,:,:,:]
                 else:
-                    output = output_array[:,8:-8,8:-8,0]
+                    output = output_array[:,8:-8,8:-8,:]
+                print(output)
+                output = oneHot2LabelMin(output)
+                
+            print(output.shape)
+            
+            #assert False
+            label = output.astype(np.int64)
+            outputOnehot = np.eye(4)[label].astype(np.uint8) 
                     
 
             output_img = sitk.GetImageFromArray(output)
@@ -193,20 +176,33 @@ def test(args, test_list, model_list, net_input_shape):
 
                 img_data = img_data[3]
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
-                ax[0,0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 0], alpha=0.5, cmap='Greys')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 1], alpha=0.5, cmap='Greens')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 2], alpha=0.5, cmap='YlGn')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 3], alpha=0.5, cmap='Oranges')
                 ax[0,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
                 ax[0,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
-                ax[0,1].imshow(output_bin[num_slices // 2, :, :], alpha=0.5, cmap='Blues')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 0], alpha=0.5, cmap='Greys')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 1], alpha=0.5, cmap='Greens')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 2], alpha=0.5, cmap='YlGn')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 3], alpha=0.5, cmap='Oranges')
+                
                 ax[0,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
                 ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[0,1].axis('off')
 
                 ax[0,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-                ax[0,2].imshow(output_bin[num_slices // 2 + num_slices // 4, :, :], alpha=0.5,
-                             cmap='Blues')
+                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 0], alpha=0.5,
+                             cmap='Greys')
+                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 1], alpha=0.5,
+                             cmap='Greens')
+                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 2], alpha=0.5,
+                             cmap='YlGn')
+                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 3], alpha=0.5,
+                             cmap='Oranges')
                 ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,
                              cmap='Reds')
                 ax[0,2].set_title(
