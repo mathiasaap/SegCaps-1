@@ -84,6 +84,12 @@ def main(args):
     if args.train:
         from train import train
         # Run training
+        if not args.weights_path == '':
+            weights_path = join(args.data_root_dir, args.weights_path)
+            try:
+                model_list[0].load_weights(weights_path)
+            except:
+                assert False, 'Unable to find weights path.'
         train(args, train_list, val_list, model_list[0], net_input_shape)
 
     if args.test:
@@ -150,6 +156,8 @@ if __name__ == '__main__':
                         help='0 or 1')
     parser.add_argument('--compute_assd', type=int, default=0,
                         help='0 or 1')
+    parser.add_argument('--epochs', type=int, default=200,
+                        help='Any int'),
     parser.add_argument('--which_gpus', type=str, default="0",
                         help='Enter "-2" for CPU only, "-1" for all GPUs available, '
                              'or a comma separated list of GPU id numbers ex: "0,1,4".')

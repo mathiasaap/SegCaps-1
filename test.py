@@ -140,7 +140,7 @@ def test(args, test_list, model_list, net_input_shape):
 
             output_array = eval_model.predict_generator(generate_test_batches(args.data_root_dir, [img],
                                                                               net_input_shape,
-                                                                              batchSize=args.batch_size,
+                                                                              batchSize=1,
                                                                               numSlices=args.slices,
                                                                               subSampAmt=0,
                                                                               stride=1),

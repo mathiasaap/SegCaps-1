@@ -136,7 +136,6 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     # Set the callbacks
     callbacks = get_callbacks(args)
     #val_list = train_list
-    args.epochs = 200
     args.steps_per_epoch = 500
     
     
@@ -146,25 +145,23 @@ def train(args, train_list, val_list, u_model, net_input_shape):
                                    stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data)
 
         for batch in batch_gen:
-            imgs, masks = batch[0]
+            imgs, masks = batch
             single_img = imgs[0]
             single_mask = masks[0]
-            print(imgs.shape)
             break
 
 
         f, ax = plt.subplots(1, 2, figsize=(15, 5))
-
         ax[0].imshow(single_img[:, :, 0], alpha=1, cmap='gray')
         #ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
         #ax[0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
         ax[0].set_title('Img')
         ax[0].axis('off')
 
-        ax[1].imshow(single_mask[:, :, 0], alpha=1, cmap='gray')
+        ax[1].imshow(single_mask[:, :, 0], alpha=1, cmap='Blues')
         #ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
         #ax[0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
-        ax[1].set_title('Img')
+        ax[1].set_title('Mask')
         ax[1].axis('off')
 
         #ax[1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
@@ -180,7 +177,6 @@ def train(args, train_list, val_list, u_model, net_input_shape):
                     format='png', bbox_inches='tight')
         plt.close('all')  
 
-        assert False
 
     # Training the network
     history = model.fit_generator(
