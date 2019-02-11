@@ -23,6 +23,7 @@ from numpy.random import rand, shuffle
 import SimpleITK as sitk
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+import random
 
 import matplotlib
 matplotlib.use('Agg')
@@ -33,7 +34,7 @@ from keras.preprocessing.image import *
 
 from custom_data_aug import elastic_transform, salt_pepper_noise
 
-debug = 0
+debug = 1
 
 def load_data(root, split):
     # Load the training and testing lists
@@ -130,63 +131,30 @@ def split_data(root_path, num_splits):
             
 
 
+def augment_random(image, label):
+    rot = [random.randint(0, 3) for i in range(3)]
+    flip = [random.randint(0, 1) for i in range(3)]
+    '''if rot[0]:
+        image = np.rot90(image, rot[0], axes=(1, 2))
+        label = np.rot90(label, rot[0], axes=(1, 2))
+    if rot[1]:
+        image = np.rot90(image, rot[1], axes=(0, 2))
+        label = np.rot90(label, rot[1], axes=(0, 2))'''
+    if rot[2]:
+        image = np.rot90(image, rot[2], axes=(0, 1))
+        label = np.rot90(label, rot[2], axes=(0, 1))
 
-
-def flip_axis(x, axis):
-    x = np.asarray(x).swapaxes(axis, 0)
-    x = x[::-1, ...]
-    x = x.swapaxes(0, axis)
-    return x
-
-def augmentImages(batch_of_images, batch_of_masks):
-    for i in range(len(batch_of_images)):
-        img_and_mask = np.concatenate((batch_of_images[i, ...], batch_of_masks[i,...]), axis=2)
-        if img_and_mask.ndim == 4: # This assumes single channel data. For multi-channel you'll need
-            # change this to put all channel in slices channel
-            orig_shape = img_and_mask.shape
-            img_and_mask = img_and_mask.reshape((img_and_mask.shape[0:3]))
-
-        if np.random.randint(0,10) == 7:
-            img_and_mask = random_rotation(img_and_mask, rg=45, row_axis=0, col_axis=1, channel_axis=2,
-                                           fill_mode='constant', cval=0.)
-
-        if np.random.randint(0, 5) == 3:
-            img_and_mask = elastic_transform(img_and_mask, alpha=1000, sigma=80, alpha_affine=50)
-
-        if np.random.randint(0, 10) == 7:
-            img_and_mask = random_shift(img_and_mask, wrg=0.2, hrg=0.2, row_axis=0, col_axis=1, channel_axis=2,
-                                        fill_mode='constant', cval=0.)
-
-        if np.random.randint(0, 10) == 7:
-            img_and_mask = random_shear(img_and_mask, intensity=16, row_axis=0, col_axis=1, channel_axis=2,
-                         fill_mode='constant', cval=0.)
-
-        if np.random.randint(0, 10) == 7:
-            img_and_mask = random_zoom(img_and_mask, zoom_range=(0.75, 0.75), row_axis=0, col_axis=1, channel_axis=2,
-                         fill_mode='constant', cval=0.)
-
-        if np.random.randint(0, 10) == 7:
-            img_and_mask = flip_axis(img_and_mask, axis=1)
-
-        if np.random.randint(0, 10) == 7:
-            img_and_mask = flip_axis(img_and_mask, axis=0)
-
-        if np.random.randint(0, 10) == 7:
-            salt_pepper_noise(img_and_mask, salt=0.2, amount=0.04)
-
-        if batch_of_images.ndim == 4:
-            batch_of_images[i, ...] = img_and_mask[...,0:img_and_mask.shape[2]//2]
-            batch_of_masks[i,...] = img_and_mask[...,img_and_mask.shape[2]//2:]
-        if batch_of_images.ndim == 5:
-            img_and_mask = img_and_mask.reshape(orig_shape)
-            batch_of_images[i, ...] = img_and_mask[...,0:img_and_mask.shape[2]//2, :]
-            batch_of_masks[i,...] = img_and_mask[...,img_and_mask.shape[2]//2:, :]
-
-        # Ensure the masks did not get any non-binary values.
-        batch_of_masks[batch_of_masks > 0.5] = 1
-        batch_of_masks[batch_of_masks <= 0.5] = 0
-
-    return(batch_of_images, batch_of_masks)
+    if flip[0]:
+        image = image[::-1]
+        label = label[::-1]
+    if flip[1]:
+        image = image[:, ::-1]
+        label = label[:, ::-1]
+    if flip[2]:
+        image = image[:, :, ::-1]
+        label = label[:, :, ::-1]
+        
+    return image, label
 
 
 ''' Make the generators threadsafe in case of multiple threads '''
@@ -380,6 +348,8 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             for j in indicies:
                 if not np.any(train_mask[:, :, j : j+numSlices]):
                     continue
+                if aug_data:
+                    train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
                     z_coordStart = max(j, 0)
@@ -406,8 +376,6 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 count += 1
                 if count % batchSize == 0:
                     count = 0
-                    if aug_data:
-                        img_batch, mask_batch = augmentImages(img_batch, mask_batch)
                     if debug:
                         if img_batch.ndim == 4:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
