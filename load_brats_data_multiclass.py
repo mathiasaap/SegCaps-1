@@ -341,8 +341,10 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                            stride=1, downSampAmt=1, shuff=1, aug_data=1):
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
+    print(net_input_shape)
+    modalities = net_input_shape[2] // numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    
+    print("img_batch " + str(img_batch.shape))
     mask_net_shape = net_input_shape
     mask_shape = [net_input_shape[0],net_input_shape[1], 4]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
@@ -370,34 +372,37 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
 
             if numSlices == 1:
                 subSampAmt = 0
-            elif subSampAmt == -1 and numSlices > 1:
-                np.random.seed(None)
-                subSampAmt = int(rand(1)*(train_img.shape[2]*0.05))
 
-            indicies = np.arange(0, train_img.shape[2] - numSlices * (subSampAmt + 1) + 1, stride)
+            indicies = np.arange(0, train_img.shape[2], stride)
+
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                if not np.any(train_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]):
+                if not np.any(train_mask[:, :, j : j+numSlices]):
                     continue
                 if img_batch.ndim == 4:
-                    
                     img_batch[count] = 0
+                    z_coordStart = max(j, 0)
+                    z_coordEnd = min(j+numSlices, train_img.shape[2]-1)
+                    next_img = train_img[:, :, z_coordStart:z_coordEnd].reshape(240, 240, -1)
+                    relativeZStart = max(0, -j)
+                    if (j+numSlices > train_img.shape[2]-1):
+                        relativeZEnd = -((j+numSlices) % (train_img.shape[2]-1))
+                    else: 
+                        relativeZEnd = train_img.shape[2]-1
+                    img_batch[count, 8:-8, 8:-8, relativeZStart*modalities:relativeZEnd*modalities] = next_img
+                    
                     mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    next_img = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1].reshape(240, 240, -1)
-                    img_batch[count, 8:-8, 8:-8, :] = next_img
-
                     mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
                     img_batch[count] = 0
                     mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    img_batch[count, 8:-8, 8:-8, :, :] = train_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    img_batch[count, 8:-8, 8:-8, :, :] = train_img[:, :, j-sideSlices : j+sideSlices+1]
                     mask_batch[count, 8:-8, 8:-8, :, :] = train_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
-
                 count += 1
                 if count % batchSize == 0:
                     count = 0
@@ -431,6 +436,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
 def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
                          stride=1, downSampAmt=1, shuff=1):
     # Create placeholders for validation
+    modalities = net_input_shape[2] // numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     mask_net_shape = net_input_shape
     mask_shape = [net_input_shape[0],net_input_shape[1], 4]
@@ -458,28 +464,33 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
 
             if numSlices == 1:
                 subSampAmt = 0
-            elif subSampAmt == -1 and numSlices > 1:
-                np.random.seed(None)
-                subSampAmt = int(rand(1)*(val_img.shape[2]*0.05))
 
-            indicies = np.arange(0, val_img.shape[2] - numSlices * (subSampAmt + 1) + 1, stride)
+            indicies = np.arange(0, val_img.shape[2], stride)
             if shuff:
                 shuffle(indicies)
 
             for j in indicies:
-                if not np.any(val_mask[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]):
+                if not np.any(val_mask[:, :,  j:j+numSlices]):
                     continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
+                    z_coordStart = max(j, 0)
+                    z_coordEnd = min(j+numSlices, val_img.shape[2]-1)
+                    next_img = val_img[:, :, z_coordStart:z_coordEnd].reshape(240, 240, -1)
+                    relativeZStart = max(0, -j)
+                    if (j+numSlices > val_img.shape[2]-1):
+                        relativeZEnd = -((j+numSlices) % (val_img.shape[2]-1))
+                    else: 
+                        relativeZEnd = val_img.shape[2]-1
+                    img_batch[count, 8:-8, 8:-8, relativeZStart*modalities:relativeZEnd*modalities] = next_img
+                    
                     mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    next_img = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1].reshape(240, 240, -1)
-                    img_batch[count, 8:-8, 8:-8, :] = next_img
                     mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j]
                 elif img_batch.ndim == 5:
                     # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
                     img_batch[count] = 0
                     mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    img_batch[count, 8:-8, 8:-8, :, :] = val_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                    img_batch[count, 8:-8, 8:-8, :, :] = val_img[:, :, j : j+numSlices]
                     mask_batch[count, 8:-8, 8:-8, :, :] = val_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
@@ -507,6 +518,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
     print('\nload_3D_data.generate_test_batches')
     print("Batch size {}".format(batchSize))
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
+    modalities = net_input_shape[2] // numSlices
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
     for i, scan_name in enumerate(test_list):
@@ -527,19 +539,24 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
 
         if numSlices == 1:
             subSampAmt = 0
-        elif subSampAmt == -1 and numSlices > 1:
-            np.random.seed(None)
-            subSampAmt = int(rand(1)*(test_img.shape[2]*0.05))
 
         #print(test_img.shape)
-        indicies = np.arange(0, test_img.shape[2] - numSlices * (subSampAmt + 1) + 1, stride)
+        indicies = np.arange(0, test_img.shape[2], stride)
         for j in indicies:
             if img_batch.ndim == 4:
-                next_img = test_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1, :].reshape(240, 240, -1)
-                img_batch[count, 8:-8, 8:-8, :] = next_img
+                img_batch[count] = 0
+                z_coordStart = max(j, 0)
+                z_coordEnd = min(j+numSlices, test_img.shape[2]-1)
+                next_img = test_img[:, :, z_coordStart:z_coordEnd].reshape(240, 240, -1)
+                relativeZStart = max(0, -j)
+                if (j+numSlices > test_img.shape[2]-1):
+                    relativeZEnd = -((j+numSlices) % (test_img.shape[2]-1))
+                else: 
+                    relativeZEnd = test_img.shape[2]-1
+                img_batch[count, 8:-8, 8:-8, relativeZStart*modalities:relativeZEnd*modalities] = next_img
             elif img_batch.ndim == 5:
                 # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                img_batch[count, 8:-8, 8:-8, :, :] = test_img[:, :, j:j + numSlices * (subSampAmt+1):subSampAmt+1]
+                img_batch[count, 8:-8, 8:-8, :, :] = test_img[:, :,  j : j+numSlices]
             else:
                 print('Error this function currently only supports 2D and 3D data.')
                 exit(0)

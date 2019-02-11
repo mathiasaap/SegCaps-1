@@ -139,10 +139,11 @@ def test(args, test_list, model_list, net_input_shape):
                 print(output)
                 output = oneHot2LabelMax(output)
                 
-            print(output.shape)
+            #print(output.shape)
             
             #assert False
             label = output.astype(np.int64)
+            #print(label[num_slices // 2, :, :])
             outputOnehot = np.eye(4)[label].astype(np.uint8) 
                     
 
@@ -152,7 +153,7 @@ def test(args, test_list, model_list, net_input_shape):
             output_mask = sitk.GetImageFromArray(output_bin)
             
             slice_img = sitk.Image(RESOLUTION,RESOLUTION,num_slices, sitk.sitkUInt8)
-            print(sitk_img.GetDimension())
+            #print(sitk_img.GetDimension())
             output_img.CopyInformation(slice_img)
             output_mask.CopyInformation(slice_img)
                 
@@ -176,50 +177,61 @@ def test(args, test_list, model_list, net_input_shape):
 
                 img_data = img_data[3]
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 0], alpha=0.5, cmap='Greys')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 0], alpha=0.1, cmap='Greys')
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 1], alpha=0.5, cmap='Greens')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 2], alpha=0.5, cmap='YlGn')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 3], alpha=0.5, cmap='Oranges')
-                ax[0,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 3], alpha=0.5, cmap='Reds')
+                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 2], alpha=0.5, cmap='Blues')
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
                 ax[0,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 0], alpha=0.5, cmap='Greys')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 0], alpha=0.1, cmap='Greys')
                 ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 1], alpha=0.5, cmap='Greens')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 2], alpha=0.5, cmap='YlGn')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 3], alpha=0.5, cmap='Oranges')
-                
-                ax[0,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 3], alpha=0.5, cmap='Reds')
+                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 2], alpha=0.5, cmap='Blues')
                 ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[0,1].axis('off')
 
                 ax[0,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 0], alpha=0.5,
+                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 0], alpha=0.1,
                              cmap='Greys')
                 ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 1], alpha=0.5,
                              cmap='Greens')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 2], alpha=0.5,
-                             cmap='YlGn')
                 ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 3], alpha=0.5,
-                             cmap='Oranges')
-                ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,
                              cmap='Reds')
+                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 2], alpha=0.5,
+                             cmap='Blues')
+                #ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,cmap='Reds')
                 ax[0,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[0,2].axis('off')
                 
                 
-                
+                #print(gt_data[num_slices // 3, :, :])
                 ax[1,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
+                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.5, cmap='Reds')
+                #ax[1,0].imshow(gt_data[num_slices // 3, :, 0], alpha=0.5, cmap='Greys')
+                #ax[1,0].imshow(gt_data[num_slices // 3, :, 1], alpha=0.5, cmap='Greens')
+                #ax[1,0].imshow(gt_data[num_slices // 3, :, 2], alpha=0.5, cmap='Reds')
+                #ax[1,0].imshow(gt_data[num_slices // 3, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
+                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.5, cmap='Reds')
+                #ax[1,1].imshow(gt_data[num_slices // 2, :, 0], alpha=0.5, cmap='Greys')
+                #ax[1,1].imshow(gt_data[num_slices // 2, :, 1], alpha=0.5, cmap='Greens')
+                #ax[1,1].imshow(gt_data[num_slices // 2, :, 2], alpha=0.5, cmap='Reds')
+                #ax[1,1].imshow(gt_data[num_slices // 2, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
+                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.5, cmap='Reds')
+                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 0], alpha=0.5, cmap='Greys')
+                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 1], alpha=0.5, cmap='Greens')
+                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 2], alpha=0.5, cmap='Reds')
+                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[1,2].axis('off')

@@ -218,4 +218,4 @@ def train(args, train_list, val_list, u_model, net_input_shape):
         verbose=1)
 
     # Plot the training data collected
-    plot_training(history, args)
+    #plot_training(history, args)
