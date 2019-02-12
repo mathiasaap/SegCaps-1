@@ -9,4 +9,3 @@ SimpleITK
 tensorflow-gpu
 keras==2.1.6
 h5py
-opencv-python
