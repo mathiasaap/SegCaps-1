@@ -34,7 +34,7 @@ from keras.preprocessing.image import *
 
 from custom_data_aug import elastic_transform, salt_pepper_noise
 
-debug = 1
+debug = 0
 
 def load_data(root, split):
     # Load the training and testing lists
@@ -313,7 +313,6 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     modalities = net_input_shape[2] // numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     print("img_batch " + str(img_batch.shape))
-    mask_net_shape = net_input_shape
     mask_shape = [net_input_shape[0],net_input_shape[1], 4]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
     mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
@@ -339,10 +338,15 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             #print("Train mask shape {}".format(train_mask.shape))
 
             if numSlices == 1:
-                subSampAmt = 0
+                sideSlices = 0
+            else:
+                if numSlices % 2 != 0:
+                    numSlices -= 1
+                sideSlices = numSlices / 2
 
             indicies = np.arange(0, train_img.shape[2], stride)
-
+            z_shape = train_img.shape[2]
+            
             if shuff:
                 shuffle(indicies)
             for j in indicies:
@@ -352,16 +356,15 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    z_coordStart = max(j, 0)
-                    z_coordEnd = min(j+numSlices, train_img.shape[2]-1)
-                    next_img = train_img[:, :, z_coordStart:z_coordEnd].reshape(240, 240, -1)
-                    relativeZStart = max(0, -j)
-                    if (j+numSlices > train_img.shape[2]-1):
-                        relativeZEnd = -((j+numSlices) % (train_img.shape[2]-1))
-                    else: 
-                        relativeZEnd = train_img.shape[2]-1
-                    img_batch[count, 8:-8, 8:-8, relativeZStart*modalities:relativeZEnd*modalities] = next_img
-                    
+                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
+                    insertion_index = -modalities
+                    img_index = 0
+                    for k in range(j-sideSlices, j+sideSlices):
+                        insertion_index += modalities
+                        if (k < 0): continue
+                        if (k >= z_shape): break
+                        img_batch[count, 8:-8, 8:-8, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                        img_index += modalities
                     mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
                     mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j]
                 elif img_batch.ndim == 5:
@@ -379,21 +382,32 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     if debug:
                         if img_batch.ndim == 4:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
-                            plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
-                        elif img_batch.ndim == 5:
+                            plt.savefig(join(root_path, 'logs', 'ex_train_slice1_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()
+                            '''plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
+                            plt.savefig(join(root_path, 'logs', 'ex_train_slice2_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 8]), cmap='gray')
+                            #plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
+                            plt.savefig(join(root_path, 'logs', 'ex_train_slice3_main_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 12]), cmap='gray')
+                            plt.savefig(join(root_path, 'logs', 'ex_train_slice4_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 16]), cmap='gray')
+                            plt.savefig(join(root_path, 'logs', 'ex_train_slice5_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()'''
+                        '''elif img_batch.ndim == 5:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0, 0]), cmap='gray')
                             plt.imshow(np.squeeze(mask_batch[0, :, :, 0, 0]), alpha=0.15)
                         plt.savefig(join(root_path, 'logs', 'ex_train.png'), format='png', bbox_inches='tight')
-                        plt.close()
+                        plt.close()'''
                     if net.find('caps') != -1: # if the network is capsule/segcaps structure
                         yield ([img_batch, mask_batch], [mask_batch, mask_batch*img_batch])
                     else:
                         yield (img_batch, mask_batch)
 
         if count != 0:
-            if aug_data:
-                img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
-                                                                              mask_batch[:count,...])
             if net.find('caps') != -1:
                 yield ([img_batch[:count, ...], mask_batch[:count, ...]],
                        [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
@@ -406,7 +420,6 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
     # Create placeholders for validation
     modalities = net_input_shape[2] // numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    mask_net_shape = net_input_shape
     mask_shape = [net_input_shape[0],net_input_shape[1], 4]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
     mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
@@ -431,9 +444,15 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     print('\nFinished making npz file.')
 
             if numSlices == 1:
-                subSampAmt = 0
+                sideSlices = 0
+            else:
+                if numSlices % 2 != 0:
+                    numSlices -= 1
+                sideSlices = numSlices / 2
 
             indicies = np.arange(0, val_img.shape[2], stride)
+            z_shape = val_img.shape[2]
+            
             if shuff:
                 shuffle(indicies)
 
@@ -442,15 +461,15 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    z_coordStart = max(j, 0)
-                    z_coordEnd = min(j+numSlices, val_img.shape[2]-1)
-                    next_img = val_img[:, :, z_coordStart:z_coordEnd].reshape(240, 240, -1)
-                    relativeZStart = max(0, -j)
-                    if (j+numSlices > val_img.shape[2]-1):
-                        relativeZEnd = -((j+numSlices) % (val_img.shape[2]-1))
-                    else: 
-                        relativeZEnd = val_img.shape[2]-1
-                    img_batch[count, 8:-8, 8:-8, relativeZStart*modalities:relativeZEnd*modalities] = next_img
+                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
+                    insertion_index = -modalities
+                    img_index = 0
+                    for k in range(j-sideSlices, j+sideSlices):
+                        insertion_index += modalities
+                        if (k < 0): continue
+                        if (k >= z_shape): break
+                        img_batch[count, 8:-8, 8:-8, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                        img_index += modalities
                     
                     mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
                     mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j]
@@ -506,22 +525,29 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
                 print('\nFinished making npz file.')
 
         if numSlices == 1:
-            subSampAmt = 0
+            sideSlices = 0
+        else:
+            if numSlices % 2 != 0:
+                numSlices -= 1
+            sideSlices = numSlices / 2
+
+            indicies = np.arange(0, test_img.shape[2], stride)
+            z_shape = test_img.shape[2]
 
         #print(test_img.shape)
         indicies = np.arange(0, test_img.shape[2], stride)
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
-                z_coordStart = max(j, 0)
-                z_coordEnd = min(j+numSlices, test_img.shape[2]-1)
-                next_img = test_img[:, :, z_coordStart:z_coordEnd].reshape(240, 240, -1)
-                relativeZStart = max(0, -j)
-                if (j+numSlices > test_img.shape[2]-1):
-                    relativeZEnd = -((j+numSlices) % (test_img.shape[2]-1))
-                else: 
-                    relativeZEnd = test_img.shape[2]-1
-                img_batch[count, 8:-8, 8:-8, relativeZStart*modalities:relativeZEnd*modalities] = next_img
+                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
+                insertion_index = -modalities
+                img_index = 0
+                for k in range(j-sideSlices, j+sideSlices):
+                    insertion_index += modalities
+                    if (k < 0): continue
+                    if (k >= z_shape): break
+                    img_batch[count, 8:-8, 8:-8, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                    img_index += modalities
             elif img_batch.ndim == 5:
                 # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
                 img_batch[count, 8:-8, 8:-8, :, :] = test_img[:, :,  j : j+numSlices]
