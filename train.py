@@ -54,7 +54,11 @@ def get_loss(root, split, net, recon_wei, choice):
 
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
-        monitor_name = 'val_out_seg_dice_hard'
+        if "multi" in arguments.loss:
+            monitor_name = 'val_out_seg_multiclass_dice_score'
+        else:
+            monitor_name = 'val_out_seg_dice_hard'
+        
     else:
         if "multi" in arguments.loss:
             monitor_name = 'val_multiclass_dice_score'
@@ -75,7 +79,11 @@ def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
     opt = Adam(lr=args.initial_lr, beta_1=0.99, beta_2=0.999, decay=1e-6)
     if args.net.find('caps') != -1:
-        metrics = {'out_seg': dice_hard}
+        if "multi" in args.loss:
+            metrics = {'out_seg': multiclass_dice_score}
+        else:
+            metrics = {'out_seg': dice_hard}
+        
     else:
         if "multi" in args.loss:
             metrics = [multiclass_dice_score]
@@ -104,8 +112,13 @@ def plot_training(training_history, arguments):
     f.suptitle(arguments.net, fontsize=18)
 
     if arguments.net.find('caps') != -1:
-        ax1.plot(training_history.history['out_seg_dice_hard'])
-        ax1.plot(training_history.history['val_out_seg_dice_hard'])
+
+        if "multi" in arguments.loss:
+            ax1.plot(training_history.history['out_seg_multiclass_dice_score'])
+            ax1.plot(training_history.history['val_out_seg_multiclass_dice_score'])
+        else:
+            ax1.plot(training_history.history['out_seg_dice_hard'])
+            ax1.plot(training_history.history['val_out_seg_dice_hard'])
     else:
         if "multi" in arguments.loss:
             ax1.plot(training_history.history['multiclass_dice_score'])

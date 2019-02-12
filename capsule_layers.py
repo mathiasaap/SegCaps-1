@@ -25,9 +25,15 @@ class Length(layers.Layer):
 
     def call(self, inputs, **kwargs):
         if inputs.get_shape().ndims == 5:
-            assert inputs.get_shape()[-2].value == 1, 'Error: Must have num_capsules = 1 going into Length'
-            inputs = K.squeeze(inputs, axis=-2)
-        return K.expand_dims(tf.norm(inputs, axis=-1), axis=-1)
+            #assert inputs.get_shape()[-2].value == 1, 'Error: Must have num_capsules = 1 going into Length'
+            print("Shapu {}".format(inputs.get_shape()))
+        print(inputs.shape)
+        norm = tf.norm(inputs, axis=-1)
+        print(norm.shape)
+        out = K.expand_dims(norm, axis=-1)
+        print(out.shape)
+        #assert False
+        return norm
 
     def compute_output_shape(self, input_shape):
         if len(input_shape) == 5:
@@ -50,6 +56,7 @@ class Mask(layers.Layer):
 
     def call(self, inputs, **kwargs):
         if type(inputs) is list:
+            print("This")
             assert len(inputs) == 2
             input, mask = inputs
             _, hei, wid, _, _ = input.get_shape()
@@ -59,14 +66,19 @@ class Mask(layers.Layer):
             if input.get_shape().ndims == 3:
                 masked = K.batch_flatten(mask * input)
             else:
+                print("Masked")
                 masked = mask * input
+                print(mask.shape)
+                print(input.shape)
 
         else:
             if inputs.get_shape().ndims == 3:
+                print("Here")
                 x = K.sqrt(K.sum(K.square(inputs), -1))
                 mask = K.one_hot(indices=K.argmax(x, 1), num_classes=x.get_shape().as_list()[1])
                 masked = K.batch_flatten(K.expand_dims(mask, -1) * inputs)
             else:
+                print("There")
                 masked = inputs
 
         return masked

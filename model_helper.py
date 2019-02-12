@@ -11,6 +11,9 @@ import tensorflow as tf
 
 def create_model(args, input_shape):
     # If using CPU or single GPU
+    num_classes = args.out_classes
+    if not num_classes:
+        num_classes = 2
     if args.gpus <= 1:
         if args.net == 'unet':
             from unet import UNet
@@ -26,7 +29,7 @@ def create_model(args, input_shape):
             return model_list
         elif args.net == 'segcapsr3':
             from capsnet import CapsNetR3
-            model_list = CapsNetR3(input_shape)
+            model_list = CapsNetR3(input_shape, num_classes)
             return model_list
         elif args.net == 'capsbasic':
             from capsnet import CapsNetBasic
@@ -55,7 +58,7 @@ def create_model(args, input_shape):
                 return model_list
             elif args.net == 'segcapsr3':
                 from capsnet import CapsNetR3
-                model_list = CapsNetR3(input_shape)
+                model_list = CapsNetR3(input_shape, num_classes)
                 return model_list
             elif args.net == 'capsbasic':
                 from capsnet import CapsNetBasic

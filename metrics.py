@@ -12,6 +12,13 @@ from scipy.ndimage.measurements import label, find_objects
 from scipy.stats import pearsonr
 
 
+def jaccard(out, y, axis=(3)):
+    eps = 1e-5
+    intersection = np.sum(out * y, axis=axis)
+    union = eps + np.sum(out*out, axis=axis) + np.sum(y*y, axis=axis)
+    entropy = (((2 * intersection)+eps) / (union))
+    return np.mean(entropy)
+
 def dc(result, reference):
     r"""
     Dice coefficient

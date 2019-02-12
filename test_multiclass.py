@@ -23,7 +23,7 @@ from tqdm import tqdm
 import numpy as np
 import scipy.ndimage.morphology
 from skimage import measure, filters
-from metrics import dc, jc, assd
+from metrics import dc, jc, assd, jaccard
 
 from keras import backend as K
 K.set_image_data_format('channels_last')
@@ -124,23 +124,23 @@ def test(args, test_list, model_list, net_input_shape):
                                                         steps=num_slices, max_queue_size=1, workers=1,
                                                         use_multiprocessing=False, verbose=1)
             
-
+            print(output_array[0].shape)
             if args.net.find('caps') != -1:
                 if args.dataset == 'luna16':
-                    output = output_array[0][:,:,:,0]
+                    output = output_array[0][:,:,:]
                 else:
-                    output = output_array[0][:,8:-8,8:-8,0]
+                    output = output_array[0][:,8:-8,8:-8]
+                print(output)
                 #recon = output_array[1][:,:,:,0]
             else:
                 if args.dataset == 'luna16':
                     output = output_array[:,:,:,:]
                 else:
                     output = output_array[:,8:-8,8:-8,:]
-                print(output)
-                output = oneHot2LabelMax(output)
+                
+            output = oneHot2LabelMax(output)
                 
             print(output.shape)
-            
             #assert False
             label = output.astype(np.int64)
             outputOnehot = np.eye(4)[label].astype(np.uint8) 
@@ -149,10 +149,10 @@ def test(args, test_list, model_list, net_input_shape):
             output_img = sitk.GetImageFromArray(output)
             print('Segmenting Output')
             output_bin = threshold_mask(output, args.thresh_level)
+            
             output_mask = sitk.GetImageFromArray(output_bin)
             
             slice_img = sitk.Image(RESOLUTION,RESOLUTION,num_slices, sitk.sitkUInt8)
-            print(sitk_img.GetDimension())
             output_img.CopyInformation(slice_img)
             output_mask.CopyInformation(slice_img)
                 
@@ -167,6 +167,8 @@ def test(args, test_list, model_list, net_input_shape):
                 # Load gt mask
                 sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
                 gt_data = sitk.GetArrayFromImage(sitk_mask)
+                label = gt_data.astype(np.int64)
+                gtOnehot = np.eye(4)[label].astype(np.uint8) 
 
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')
@@ -180,7 +182,7 @@ def test(args, test_list, model_list, net_input_shape):
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 1], alpha=0.5, cmap='Greens')
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 2], alpha=0.5, cmap='YlGn')
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 3], alpha=0.5, cmap='Oranges')
-                ax[0,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
+                #ax[0,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
@@ -190,7 +192,7 @@ def test(args, test_list, model_list, net_input_shape):
                 ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 2], alpha=0.5, cmap='YlGn')
                 ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 3], alpha=0.5, cmap='Oranges')
                 
-                ax[0,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
+                #ax[0,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.2, cmap='Reds')
                 ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[0,1].axis('off')
 
@@ -203,8 +205,7 @@ def test(args, test_list, model_list, net_input_shape):
                              cmap='YlGn')
                 ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 3], alpha=0.5,
                              cmap='Oranges')
-                ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,
-                             cmap='Reds')
+                #ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2, cmap='Reds')
                 ax[0,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[0,2].axis('off')
@@ -271,17 +272,17 @@ def test(args, test_list, model_list, net_input_shape):
             row = [img[0][:-4]]
             if args.compute_dice:
                 print('Computing Dice')
-                dice_arr[i] = dc(output_bin, gt_data)
+                dice_arr[i] = dc(outputOnehot, gtOnehot)
                 print('\tDice: {}'.format(dice_arr[i]))
                 row.append(dice_arr[i])
             if args.compute_jaccard:
                 print('Computing Jaccard')
-                jacc_arr[i] = jc(output_bin, gt_data)
+                jacc_arr[i] = jaccard(outputOnehot, gtOnehot)
                 print('\tJaccard: {}'.format(jacc_arr[i]))
                 row.append(jacc_arr[i])
             if args.compute_assd:
                 print('Computing ASSD')
-                assd_arr[i] = assd(output_bin, gt_data, voxelspacing=sitk_img.GetSpacing(), connectivity=1)
+                assd_arr[i] = assd(outputOnehot, gtOnehot, voxelspacing=sitk_img.GetSpacing(), connectivity=1)
                 print('\tASSD: {}'.format(assd_arr[i]))
                 row.append(assd_arr[i])
 
