@@ -356,10 +356,10 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
+                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(240, 240, -1)
                     insertion_index = -modalities
                     img_index = 0
-                    for k in range(j-sideSlices, j+sideSlices):
+                    for k in range(j-sideSlices, j+sideSlices+1):
                         insertion_index += modalities
                         if (k < 0): continue
                         if (k >= z_shape): break
@@ -382,20 +382,22 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     if debug:
                         if img_batch.ndim == 4:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice1_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice1.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             '''plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice2_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice2.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 8]), cmap='gray')
-                            #plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice3_main_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice3_main.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()
+                            plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_label.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 12]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice4_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice4.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 16]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice5_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice5.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()'''
                         '''elif img_batch.ndim == 5:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0, 0]), cmap='gray')
@@ -461,10 +463,10 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
+                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(240, 240, -1)
                     insertion_index = -modalities
                     img_index = 0
-                    for k in range(j-sideSlices, j+sideSlices):
+                    for k in range(j-sideSlices, j+sideSlices+1):
                         insertion_index += modalities
                         if (k < 0): continue
                         if (k >= z_shape): break
@@ -539,10 +541,10 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
-                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
+                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(240, 240, -1)
                 insertion_index = -modalities
                 img_index = 0
-                for k in range(j-sideSlices, j+sideSlices):
+                for k in range(j-sideSlices, j+sideSlices+1):
                     insertion_index += modalities
                     if (k < 0): continue
                     if (k >= z_shape): break
