@@ -40,7 +40,7 @@ def get_loss(root, split, net, recon_wei, choice):
     elif choice == 'dice':
         loss = dice_loss
     elif choice == 'multi_dice':
-        loss = multiclass_dice_lossraw_data
+        loss = multiclass_dice_loss
     elif choice == 'w_mar':
         pos_class_weight = load_class_weights(root=root, split=split)
         loss = margin_loss(margin=0.4, downweight=0.5, pos_weight=pos_class_weight)
