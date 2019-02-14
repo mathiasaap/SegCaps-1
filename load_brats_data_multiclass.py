@@ -24,6 +24,12 @@ import SimpleITK as sitk
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import random
+import time
+
+from scipy import linalg
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.interpolation import map_coordinates
+
 
 import matplotlib
 matplotlib.use('Agg')
@@ -128,6 +134,89 @@ def split_data(root_path, num_splits):
                     writer.writerow([basename(mask_list[i])])
             n += 1
             
+def elasticDeform3D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
+    if is_random is False:
+        random_state = np.random.RandomState(None)
+    else:
+        random_state = np.random.RandomState(int(time.time()))
+
+    modalities = x.shape[3]
+    classes = y.shape[3]
+
+    distX = random_state.rand(*x.shape[:-1])
+    distY = random_state.rand(*x.shape[:-1])
+    distZ = random_state.rand(*x.shape[:-1])
+
+    dx = gaussian_filter((distX * 2 - 1), sigma, mode=mode, cval=cval) * alpha
+    dy = gaussian_filter((distY * 2 - 1), sigma, mode=mode, cval=cval) * alpha
+    dz = gaussian_filter((distZ * 2 - 1), sigma, mode=mode, cval=cval) * alpha
+
+    dataChannels = []
+    for modal in range(modalities):
+        x_, y_, z_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), np.arange(x.shape[2]), indexing='ij')
+        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1)), np.reshape(z_ + dz, (-1, 1))
+        dataChannels.append(map_coordinates(x[:,:,:,modal], indices, order=1).reshape(x.shape[:-1]))
+
+    outputChannels = []
+    for c in range(classes):
+        x_, y_, z_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), np.arange(x.shape[2]), indexing='ij')
+        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1)), np.reshape(z_ + dz, (-1, 1))
+        outputChannels.append(map_coordinates(y[:,:,:,c], indices, order=1).reshape(x.shape[:-1]))
+
+    #x_, y_, z_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), np.arange(x.shape[2]), indexing='ij')
+    #indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1)), np.reshape(z_ + dz, (-1, 1))
+
+    newX = np.zeros(x.shape)
+    #y = map_coordinates(y, indices, order=1).reshape(y.shape)
+    for modal in range(len(dataChannels)):
+        newX[:,:,:,modal] = dataChannels[modal]
+
+    #newYValues = np.zeros(y.shape)
+    #newY = np.zeros(y.shape)
+    for c in range(len(outputChannels)):
+        y[:,:,:,c] = outputChannels[c]
+
+
+    return newX, y
+    #labels rounded to preverse index property
+    #return newX, np.round(y)
+def elasticDeform2D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
+    if is_random is False:
+        random_state = np.random.RandomState(None)
+    else:
+        random_state = np.random.RandomState(int(time.time()))
+
+    modalities = x.shape[2]
+    classes = y.shape[2]
+
+    distX = random_state.rand(*x.shape[:-1])
+    distY = random_state.rand(*x.shape[:-1])
+
+    dx = gaussian_filter((distX * 2 - 1), sigma, mode=mode, cval=cval) * alpha
+    dy = gaussian_filter((distY * 2 - 1), sigma, mode=mode, cval=cval) * alpha
+
+    dataChannels = []
+    for modal in range(modalities):
+        x_, y_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), indexing='ij')
+        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1))
+        dataChannels.append(map_coordinates(x[:,:,modal], indices, order=1).reshape(x.shape[:-1]))
+
+    outputChannels = []
+    for c in range(classes):
+        x_, y_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), indexing='ij')
+        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1))
+        outputChannels.append(map_coordinates(y[:,:,c], indices, order=1).reshape(x.shape[:-1]))
+
+    newX = np.zeros(x.shape)
+    for modal in range(len(dataChannels)):
+        newX[:,:,modal] = dataChannels[modal]
+
+    for c in range(len(outputChannels)):
+        y[:,:,c] = outputChannels[c]
+
+
+    return newX, y
+            
             
 
 
@@ -153,6 +242,8 @@ def augment_random(image, label):
     if flip[2]:
         image = image[:, :, ::-1]
         label = label[:, :, ::-1]
+        
+    #image, label = elasticDeform3D(image, label, alpha=720, sigma=24, mode='reflect', is_random=True)
         
     return image, label
 
@@ -244,8 +335,8 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
             print("Created mask shape: {}".format(masks.shape))
             #mask = masks.astype(np.float32)
             
-            masks[masks>0.5] = one_hot_max
-            masks[masks<0.5] = 1-one_hot_max
+            #masks[masks>0.5] = one_hot_max
+            #masks[masks<0.5] = 1-one_hot_max
             mask = masks
             #mask = masks.astype(np.uint8)
             
@@ -376,6 +467,9 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
+                    
+                if aug_data:
+                    img_batch[count], mask_batch[count] = elasticDeform2D(img_batch[count], mask_batch[count], alpha=720, sigma=24, mode='reflect', is_random=True)
                 count += 1
                 if count % batchSize == 0:
                     count = 0
