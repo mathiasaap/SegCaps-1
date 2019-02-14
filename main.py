@@ -28,10 +28,10 @@ from keras.backend.tensorflow_backend import set_session
 
 
 def main(args):
-    args.num_splits = 2
+    args.num_splits = 5
     args.out_classes = 4
-    args.epochs = 1
-    args.steps_per_epoch = 1000
+    args.epochs = 200
+    args.steps_per_epoch = 3000
     args.dataset = 'brats'
     # Ensure training, testing, and manip are not all turned off
     assert (args.train or args.test or args.manip), 'Cannot have train, test, and manip all set to 0, Nothing to do.'

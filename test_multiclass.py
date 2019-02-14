@@ -33,6 +33,50 @@ from keras.utils import print_summary
 from load_brats_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
+def create_activation_image(args, raw_data, label, slice_num = 80, index=0):
+    f, ax = plt.subplots(2, 4, figsize=(15, 15))
+
+    ax[0,0].imshow(raw_data[slice_num, :, :, 0], alpha=1, cmap='Reds')
+    ax[0,0].set_title('Background')
+    ax[0,0].axis('off')
+
+    ax[0,1].imshow(raw_data[slice_num, :, :, 1], alpha=1, cmap='Reds')
+    ax[0,1].set_title('Edema')
+    ax[0,1].axis('off')
+    
+    ax[0,2].imshow(raw_data[slice_num, :, :, 2], alpha=1, cmap='Reds')
+    ax[0,2].set_title('Enhancing')
+    ax[0,2].axis('off')
+    
+    ax[0,3].imshow(raw_data[slice_num, :, :, 3], alpha=1, cmap='Reds')
+    ax[0,3].set_title('Non Enhancing')
+    ax[0,3].axis('off')
+    
+    
+    ax[1,0].imshow(label[slice_num, :, :, 0], alpha=1, cmap='Reds')
+    ax[1,0].set_title('Background label')
+    ax[1,0].axis('off')
+
+    ax[1,1].imshow(label[slice_num, :, :, 1], alpha=1, cmap='Reds')
+    ax[1,1].set_title('Edema label')
+    ax[1,1].axis('off')
+    
+    ax[1,2].imshow(label[slice_num, :, :, 2], alpha=1, cmap='Reds')
+    ax[1,2].set_title('Enhancing label')
+    ax[1,2].axis('off')
+    
+    ax[1,3].imshow(label[slice_num, :, :, 3], alpha=1, cmap='Reds')
+    ax[1,3].set_title('Non Enhancing label')
+    ax[1,3].axis('off')
+
+
+    fig = plt.gcf()
+    fig.suptitle("Activation maps for BRATS {}".format(index))
+
+    plt.savefig(join(args.data_root_dir, 'results', 'activations', 'img_{}'.format(index) + '.png'),
+                format='png', bbox_inches='tight')
+    plt.close('all') 
+
 def threshold_mask(raw_output, threshold):
 
     raw_output[raw_output > 0.5] = 1
@@ -138,6 +182,7 @@ def test(args, test_list, model_list, net_input_shape):
                 else:
                     output = output_array[:,8:-8,8:-8,:]
                 
+            output_raw = output
             output = oneHot2LabelMax(output)
                 
             print(output.shape)
@@ -169,7 +214,7 @@ def test(args, test_list, model_list, net_input_shape):
                 gt_data = sitk.GetArrayFromImage(sitk_mask)
                 label = gt_data.astype(np.int64)
                 gtOnehot = np.eye(4)[label].astype(np.uint8) 
-
+                create_activation_image(args, output_raw, gtOnehot, index=i)
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')
                 f, ax = plt.subplots(2, 3, figsize=(10, 5))
@@ -178,7 +223,7 @@ def test(args, test_list, model_list, net_input_shape):
 
                 img_data = img_data[3]
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 0], alpha=0.5, cmap='Greys')
+                #ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 0], alpha=0.5, cmap='Greys')
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 1], alpha=0.5, cmap='Greens')
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 2], alpha=0.5, cmap='YlGn')
                 ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 3], alpha=0.5, cmap='Oranges')
@@ -187,7 +232,7 @@ def test(args, test_list, model_list, net_input_shape):
                 ax[0,0].axis('off')
 
                 ax[0,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 0], alpha=0.5, cmap='Greys')
+                #ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 0], alpha=0.5, cmap='Greys')
                 ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 1], alpha=0.5, cmap='Greens')
                 ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 2], alpha=0.5, cmap='YlGn')
                 ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 3], alpha=0.5, cmap='Oranges')
@@ -197,8 +242,8 @@ def test(args, test_list, model_list, net_input_shape):
                 ax[0,1].axis('off')
 
                 ax[0,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 0], alpha=0.5,
-                             cmap='Greys')
+                #ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 0], alpha=0.5,
+                #             cmap='Greys')
                 ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 1], alpha=0.5,
                              cmap='Greens')
                 ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 2], alpha=0.5,
@@ -214,13 +259,16 @@ def test(args, test_list, model_list, net_input_shape):
                 
                 ax[1,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
                 ax[1,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
+                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=1, cmap='Reds')
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
                 ax[1,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
+                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=1, cmap='Reds')
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
+                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='Reds')
                 ax[1,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[1,2].axis('off')

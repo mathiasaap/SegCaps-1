@@ -22,10 +22,10 @@ def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
     return tf.reduce_mean(entropy) # return -tf.reduce_mean(entropy) works without softmax and oneHot2LabelMin
 
 def multiclass_dice_loss(out, y, from_logits=False):
-    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = False) #  1-multiclass_dice(out, y, axis=(1,2,3))# return -multiclass_dice works without softmax and oneHot2LabelMin
+    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = True) #  1-multiclass_dice(out, y, axis=(1,2,3))# return -multiclass_dice works without softmax and oneHot2LabelMin
 
 def multiclass_dice_score(out, y, from_logits=False):
-    return multiclass_dice(out, y, axis=(1,2,3), from_logits = False)
+    return multiclass_dice(out, y, axis=(1,2,3), from_logits = True)
 
 def dice_soft(y_true, y_pred, loss_type='sorensen', axis=[1,2,3], smooth=1e-5, from_logits=False):
     """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity

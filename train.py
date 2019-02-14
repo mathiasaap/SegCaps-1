@@ -29,6 +29,8 @@ from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_los
 from load_brats_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
+
+
 def get_loss(root, split, net, recon_wei, choice):
     if choice == 'w_bce':
         pos_class_weight = load_class_weights(root=root, split=split)
@@ -38,7 +40,7 @@ def get_loss(root, split, net, recon_wei, choice):
     elif choice == 'dice':
         loss = dice_loss
     elif choice == 'multi_dice':
-        loss = multiclass_dice_loss
+        loss = multiclass_dice_lossraw_data
     elif choice == 'w_mar':
         pos_class_weight = load_class_weights(root=root, split=split)
         loss = margin_loss(margin=0.4, downweight=0.5, pos_weight=pos_class_weight)
@@ -68,7 +70,7 @@ def get_callbacks(arguments):
     csv_logger = CSVLogger(join(arguments.log_dir, arguments.output_name + '_log_' + arguments.time + '.csv'), separator=',')
     tb = TensorBoard(arguments.tf_log_dir, batch_size=arguments.batch_size, histogram_freq=0)
     model_checkpoint = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_model_' + arguments.time + '.hdf5'),
-                                       monitor=monitor_name, save_best_only=True, save_weights_only=True,
+                                       monitor=monitor_name, save_best_only=False, save_weights_only=True,
                                        verbose=1, mode='max')
     lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.05, cooldown=0, patience=5,verbose=1, mode='max')
     early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=25, verbose=0, mode='max')
@@ -95,10 +97,12 @@ def compile_model(args, net_input_shape, uncomp_model):
 
     # If using CPU or single GPU
     if args.gpus <= 1:
-        uncomp_model.compile(optimizer=opt, loss=loss, metrics=metrics)
+
+        uncomp_model.compile(optimizer=opt, loss=loss, loss_weights=loss_weighting, metrics=metrics)
         return uncomp_model
     # If using multiple GPUs
     else:
+
         with tf.device("/cpu:0"):
             uncomp_model.compile(optimizer=opt, loss=loss, loss_weights=loss_weighting, metrics=metrics)
             model = multi_gpu_model(uncomp_model, gpus=args.gpus)
@@ -161,7 +165,7 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
     # Set the callbacks
     callbacks = get_callbacks(args)
-    #val_list = train_list
+    val_list = train_list
 
     
     
@@ -225,7 +229,7 @@ def train(args, train_list, val_list, u_model, net_input_shape):
         validation_data=generate_val_batches(args.data_root_dir, val_list, net_input_shape, net=args.net,
                                              batchSize=args.batch_size,  numSlices=args.slices, subSampAmt=0,
                                              stride=20, shuff=args.shuffle_data),
-        validation_steps=150, # Set validation stride larger to see more of the data.
+        validation_steps=600, # Set validation stride larger to see more of the data.
         epochs=args.epochs,
         callbacks=callbacks,
         verbose=1)

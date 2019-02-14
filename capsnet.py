@@ -123,10 +123,14 @@ def MultiCapsNetR3(input_shape, n_class=2):
 
 
 def CapsNetR3(input_shape, n_class=2):
+    capsules_base = 2
+    filter_multiplier = 1
+    atoms_base = 16*filter_multiplier
+    
     x = layers.Input(shape=input_shape)
 
     # Layer 1: Just a conventional Conv2D layer
-    conv1 = layers.Conv2D(filters=16, kernel_size=5, strides=1, padding='same', activation='relu', name='conv1')(x)
+    conv1 = layers.Conv2D(filters=16*filter_multiplier, kernel_size=5, strides=1, padding='same', activation='relu', name='conv1')(x)
 
     # Reshape layer to be 1 capsule x [filters] atoms
     _, H, W, C = conv1.get_shape()
@@ -134,31 +138,31 @@ def CapsNetR3(input_shape, n_class=2):
     conv1_reshaped = layers.Reshape((H.value, W.value, 1, C.value))(conv1)
     print(conv1_reshaped.shape)
     # Layer 1: Primary Capsule: Conv cap with routing 1
-    primary_caps = ConvCapsuleLayer(kernel_size=5, num_capsule=2, num_atoms=16, strides=2, padding='same',
+    primary_caps = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base, num_atoms=atoms_base, strides=2, padding='same',
                                     routings=1, name='primarycaps')(conv1_reshaped)
 
     # Layer 2: Convolutional Capsule
-    conv_cap_2_1 = ConvCapsuleLayer(kernel_size=5, num_capsule=4, num_atoms=16, strides=1, padding='same',
+    conv_cap_2_1 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*2, num_atoms=atoms_base, strides=1, padding='same',
                                     routings=3, name='conv_cap_2_1')(primary_caps)
 
     # Layer 2: Convolutional Capsule
-    conv_cap_2_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=4, num_atoms=32, strides=2, padding='same',
+    conv_cap_2_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*2, num_atoms=atoms_base*2, strides=2, padding='same',
                                     routings=3, name='conv_cap_2_2')(conv_cap_2_1)
 
     # Layer 3: Convolutional Capsule
-    conv_cap_3_1 = ConvCapsuleLayer(kernel_size=5, num_capsule=8, num_atoms=32, strides=1, padding='same',
+    conv_cap_3_1 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*4, num_atoms=atoms_base*2, strides=1, padding='same',
                                     routings=3, name='conv_cap_3_1')(conv_cap_2_2)
 
     # Layer 3: Convolutional Capsule
-    conv_cap_3_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=8, num_atoms=64, strides=2, padding='same',
+    conv_cap_3_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*4, num_atoms=atoms_base*4, strides=2, padding='same',
                                     routings=3, name='conv_cap_3_2')(conv_cap_3_1)
 
     # Layer 4: Convolutional Capsule
-    conv_cap_4_1 = ConvCapsuleLayer(kernel_size=5, num_capsule=8, num_atoms=32, strides=1, padding='same',
+    conv_cap_4_1 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*4, num_atoms=atoms_base*2, strides=1, padding='same',
                                     routings=3, name='conv_cap_4_1')(conv_cap_3_2)
 
     # Layer 1 Up: Deconvolutional Capsule
-    deconv_cap_1_1 = DeconvCapsuleLayer(kernel_size=4, num_capsule=8, num_atoms=32, upsamp_type='deconv',
+    deconv_cap_1_1 = DeconvCapsuleLayer(kernel_size=4, num_capsule=capsules_base*4, num_atoms=atoms_base*2, upsamp_type='deconv',
                                         scaling=2, padding='same', routings=3,
                                         name='deconv_cap_1_1')(conv_cap_4_1)
 
@@ -166,11 +170,11 @@ def CapsNetR3(input_shape, n_class=2):
     up_1 = layers.Concatenate(axis=-2, name='up_1')([deconv_cap_1_1, conv_cap_3_1])
 
     # Layer 1 Up: Deconvolutional Capsule
-    deconv_cap_1_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=4, num_atoms=32, strides=1,
+    deconv_cap_1_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*2, num_atoms=atoms_base*2, strides=1,
                                       padding='same', routings=3, name='deconv_cap_1_2')(up_1)
 
     # Layer 2 Up: Deconvolutional Capsule
-    deconv_cap_2_1 = DeconvCapsuleLayer(kernel_size=4, num_capsule=4, num_atoms=16, upsamp_type='deconv',
+    deconv_cap_2_1 = DeconvCapsuleLayer(kernel_size=4, num_capsule=capsules_base*2, num_atoms=atoms_base, upsamp_type='deconv',
                                         scaling=2, padding='same', routings=3,
                                         name='deconv_cap_2_1')(deconv_cap_1_2)
 
@@ -178,11 +182,11 @@ def CapsNetR3(input_shape, n_class=2):
     up_2 = layers.Concatenate(axis=-2, name='up_2')([deconv_cap_2_1, conv_cap_2_1])
 
     # Layer 2 Up: Deconvolutional Capsule
-    deconv_cap_2_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=4, num_atoms=16, strides=1,
+    deconv_cap_2_2 = ConvCapsuleLayer(kernel_size=5, num_capsule=capsules_base*2, num_atoms=atoms_base, strides=1,
                                       padding='same', routings=3, name='deconv_cap_2_2')(up_2)
 
     # Layer 3 Up: Deconvolutional Capsule
-    deconv_cap_3_1 = DeconvCapsuleLayer(kernel_size=4, num_capsule=2, num_atoms=16, upsamp_type='deconv',
+    deconv_cap_3_1 = DeconvCapsuleLayer(kernel_size=4, num_capsule=capsules_base*2, num_atoms=atoms_base, upsamp_type='deconv',
                                         scaling=2, padding='same', routings=3,
                                         name='deconv_cap_3_1')(deconv_cap_2_2)
 
@@ -190,7 +194,7 @@ def CapsNetR3(input_shape, n_class=2):
     up_3 = layers.Concatenate(axis=-2, name='up_3')([deconv_cap_3_1, conv1_reshaped])
 
     # Layer 4: Convolutional Capsule: 1x1
-    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=4, num_atoms=16, strides=1, padding='same',
+    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=4, num_atoms=atoms_base, strides=1, padding='same',
                                 routings=3, name='seg_caps')(up_3)
 
     # Layer 4: This is an auxiliary layer to replace each capsule with its length. Just to match the true label's shape.
