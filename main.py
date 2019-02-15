@@ -173,6 +173,8 @@ if __name__ == '__main__':
                         help='Number of epochs to run. Any positive integer')
     parser.add_argument('--steps_per_epoch', type=int, default=1000,
                         help='Number of training steps to run every epoch. Any positive integer')
+    parser.add_argument('--validation_steps', type=int, default=600,
+                        help='Number of validation steps to run every epoch. Any positive integer')
     parser.add_argument('--which_gpus', type=str, default="0",
                         help='Enter "-2" for CPU only, "-1" for all GPUs available, '
                              'or a comma separated list of GPU id numbers ex: "0,1,4".')
@@ -180,6 +182,18 @@ if __name__ == '__main__':
                         help='Number of GPUs you have available for training. '
                              'If entering specific GPU ids under the --which_gpus arg or if using CPU, '
                              'then this number will be inferred, else this argument must be included.')
+
+    parser.add_argument('--use_multiprocessing', type=int, default=1,
+                help='Use multiprocessing: [0, 1]. Default: 1')
+    
+    parser.add_argument('--workers', type=int, default=12,
+            help='Thread workers')
+    
+    parser.add_argument('--max_queue_size', type=int, default=32,
+        help='Max queue size. Too high will crash due to memory allocation failure.')
+    
+    
+    
 
     arguments = parser.parse_args()
 
