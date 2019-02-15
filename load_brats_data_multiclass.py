@@ -533,8 +533,8 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
                 numSlices -= 1
             sideSlices = numSlices / 2
 
-            indicies = np.arange(0, test_img.shape[2], stride)
-            z_shape = test_img.shape[2]
+        indicies = np.arange(0, test_img.shape[2], stride)
+        z_shape = test_img.shape[2]
 
         #print(test_img.shape)
         indicies = np.arange(0, test_img.shape[2], stride)

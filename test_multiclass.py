@@ -33,22 +33,25 @@ from keras.utils import print_summary
 from load_brats_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
-def create_activation_image(args, raw_data, label, slice_num = 80, index=0):
+def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
     f, ax = plt.subplots(2, 4, figsize=(15, 15))
 
-    ax[0,0].imshow(raw_data[slice_num, :, :, 0], alpha=1, cmap='Reds')
+    mi = np.min(raw_data[slice_num])
+    ma = np.max(raw_data[slice_num])
+    
+    ax[0,0].imshow(raw_data[slice_num, :, :, 0], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
     ax[0,0].set_title('Background')
     ax[0,0].axis('off')
 
-    ax[0,1].imshow(raw_data[slice_num, :, :, 1], alpha=1, cmap='Reds')
+    ax[0,1].imshow(raw_data[slice_num, :, :, 1], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
     ax[0,1].set_title('Edema')
     ax[0,1].axis('off')
     
-    ax[0,2].imshow(raw_data[slice_num, :, :, 2], alpha=1, cmap='Reds')
+    ax[0,2].imshow(raw_data[slice_num, :, :, 2], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
     ax[0,2].set_title('Enhancing')
     ax[0,2].axis('off')
     
-    ax[0,3].imshow(raw_data[slice_num, :, :, 3], alpha=1, cmap='Reds')
+    ax[0,3].imshow(raw_data[slice_num, :, :, 3], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
     ax[0,3].set_title('Non Enhancing')
     ax[0,3].axis('off')
     
@@ -264,7 +267,7 @@ def test(args, test_list, model_list, net_input_shape):
                 #ax[1,0].imshow(gt_data[num_slices // 3, :, 2], alpha=0.5, cmap='Reds')
                 #ax[1,0].imshow(gt_data[num_slices // 3, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
-                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=1, cmap='Reds')
+                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=3)
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
@@ -274,12 +277,12 @@ def test(args, test_list, model_list, net_input_shape):
                 #ax[1,1].imshow(gt_data[num_slices // 2, :, 2], alpha=0.5, cmap='Reds')
                 #ax[1,1].imshow(gt_data[num_slices // 2, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
-                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=1, cmap='Reds')
+                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=3)
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
 
-                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.5, cmap='Reds')
+                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=3)
                 #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 0], alpha=0.5, cmap='Greys')
                 #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 1], alpha=0.5, cmap='Greens')
                 #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 2], alpha=0.5, cmap='Reds')

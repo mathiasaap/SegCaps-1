@@ -165,7 +165,7 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
     # Set the callbacks
     callbacks = get_callbacks(args)
-    val_list = train_list
+    #val_list = train_list
 
     
     

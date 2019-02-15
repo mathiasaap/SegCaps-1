@@ -30,7 +30,6 @@ from keras.backend.tensorflow_backend import set_session
 def main(args):
     args.num_splits = 5
     args.out_classes = 4
-    args.epochs = 50
     args.steps_per_epoch = 1000
     args.dataset = 'brats'
     # Ensure training, testing, and manip are not all turned off
@@ -89,7 +88,15 @@ def main(args):
     if args.train:
         from train import train
         # Run training
+        if args.weights_path:
+            weights_path = join(args.data_root_dir, args.weights_path)
+            try:
+                model_list[0].load_weights(weights_path)
+            except:
+                assert False, 'Unable to find weights path.'
         train(args, train_list, val_list, model_list[0], net_input_shape)
+        
+        args.weights_path = ''
 
     if args.test:
         if args.dataset == 'brats':
@@ -159,6 +166,8 @@ if __name__ == '__main__':
                         help='0 or 1')
     parser.add_argument('--compute_assd', type=int, default=0,
                         help='0 or 1')
+    parser.add_argument('--epochs', type=int, default=50,
+                        help='Number of epochs to run. Any positive integer')
     parser.add_argument('--which_gpus', type=str, default="0",
                         help='Enter "-2" for CPU only, "-1" for all GPUs available, '
                              'or a comma separated list of GPU id numbers ex: "0,1,4".')
