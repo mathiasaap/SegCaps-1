@@ -320,9 +320,6 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
         img = np.clip(img, + brats_min, brats_max)
         img = (img - brats_min) / (brats_max - brats_min)
         
-        #img = img[:, :, :, 3] # Select only t1w during initial testing
-        #img = (img-img.mean())/img.std()
-        
         
         if not no_masks:
             itk_mask = sitk.ReadImage(join(mask_path, img_name))
@@ -333,7 +330,6 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
             
             label = mask.astype(np.int64)
             masks = np.eye(4)[label]
-            print("Created mask shape: {}".format(masks.shape))
             #mask = masks.astype(np.float32)
             
             #masks[masks>0.5] = one_hot_max
@@ -366,7 +362,6 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
 
             fig = plt.gcf()
             fig.suptitle(fname)
-            print("save qual fig")
             plt.savefig(join(fig_path, fname + '.png'), format='png', bbox_inches='tight')
             plt.close(fig)
         except Exception as e:
@@ -416,7 +411,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             try:
                 scan_name = scan_name[0]
                 path_to_np = join(root_path,'np_files',basename(scan_name)[:-6]+'npz')
-                print('\npath_to_np=%s'%(path_to_np))
+                #print('\npath_to_np=%s'%(path_to_np))
                 with np.load(path_to_np) as data:
                     train_img = data['img']
                     train_mask = data['mask']
@@ -442,7 +437,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                if not np.any(train_mask[:, :, j : j+numSlices]):
+                if not np.any(train_mask[:, :, j, 1:]):
                     continue
                 if aug_data:
                     train_img, train_mask = augment_random(train_img, train_mask)
