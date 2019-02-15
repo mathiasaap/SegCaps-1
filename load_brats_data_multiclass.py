@@ -25,6 +25,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import random
 import time
+from postprocess import oneHot2LabelMax
 
 from scipy import linalg
 from scipy.ndimage.filters import gaussian_filter
@@ -399,9 +400,9 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
 def generate_train_batches(root_path, train_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
                            stride=1, downSampAmt=1, shuff=1, aug_data=1):
     # Create placeholders for training
-    # (img_shape[1], img_shape[2], args.slices)
-    print(net_input_shape)
+
     modalities = net_input_shape[2] // numSlices
+    input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     print("img_batch " + str(img_batch.shape))
     mask_shape = [net_input_shape[0],net_input_shape[1], 4]
@@ -499,14 +500,34 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                         plt.savefig(join(root_path, 'logs', 'ex_train.png'), format='png', bbox_inches='tight')
                         plt.close()'''
                     if net.find('caps') != -1: # if the network is capsule/segcaps structure
-                        yield ([img_batch, mask_batch], [mask_batch, mask_batch*img_batch])
+              
+                        mid_slice = input_slices // 2
+                        start_index = mid_slice * modalities
+                        img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                       
+                        mask_batch_masked = oneHot2LabelMax(mask_batch)
+                        mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                        mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                        mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                        #assert False
+                        yield ([img_batch, mask_batch_masked], [mask_batch, mask_batch_masked_expand*img_batch_mid_slice])
                     else:
                         yield (img_batch, mask_batch)
 
         if count != 0:
             if net.find('caps') != -1:
-                yield ([img_batch[:count, ...], mask_batch[:count, ...]],
-                       [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
+                mid_slice = input_slices // 2
+                start_index = mid_slice * modalities
+                img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+
+                mask_batch_masked = oneHot2LabelMax(mask_batch)
+                mask_batch_masked[mask_batch_masked > 0.5] = 1.0
+                mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+                
+                yield ([img_batch[:count, ...], mask_batch_masked[:count, ...]],
+                       [mask_batch[:count, ...], mask_batch_masked_expand[:count, ...] * img_batch_mid_slice[:count, ...]])
             else:
                 yield (img_batch[:count,...], mask_batch[:count,...])
 
@@ -514,7 +535,9 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
 def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
                          stride=1, downSampAmt=1, shuff=1):
     # Create placeholders for validation
+    
     modalities = net_input_shape[2] // numSlices
+    input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     mask_shape = [net_input_shape[0],net_input_shape[1], 4]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
@@ -583,14 +606,32 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 if count % batchSize == 0:
                     count = 0
                     if net.find('caps') != -1:
-                        yield ([img_batch, mask_batch], [mask_batch, mask_batch * img_batch])
+                        mid_slice = input_slices // 2
+                        start_index = mid_slice * modalities
+                        img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                       
+                        mask_batch_masked = oneHot2LabelMax(mask_batch)
+                        mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                        mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                        mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                        yield ([img_batch, mask_batch_masked], [mask_batch, mask_batch_masked_expand*img_batch_mid_slice])
                     else:
                         yield (img_batch, mask_batch)
 
         if count != 0:
             if net.find('caps') != -1:
-                yield ([img_batch[:count, ...], mask_batch[:count, ...]],
-                       [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
+                mid_slice = input_slices // 2
+                start_index = mid_slice * modalities
+                img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+
+                mask_batch_masked = oneHot2LabelMax(mask_batch)
+                mask_batch_masked[mask_batch_masked > 0.5] = 1.0
+                mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+                
+                yield ([img_batch[:count, ...], mask_batch_masked[:count, ...]],
+                       [mask_batch[:count, ...], mask_batch_masked_expand[:count, ...] * img_batch_mid_slice[:count, ...]])
             else:
                 yield (img_batch[:count,...], mask_batch[:count,...])
 
