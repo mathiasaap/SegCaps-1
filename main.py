@@ -30,7 +30,7 @@ from keras.backend.tensorflow_backend import set_session
 def main(args):
     args.num_splits = 5
     args.out_classes = 4
-    args.steps_per_epoch = 1000
+    args.steps_per_epoch = 3000
     args.dataset = 'brats'
     # Ensure training, testing, and manip are not all turned off
     assert (args.train or args.test or args.manip), 'Cannot have train, test, and manip all set to 0, Nothing to do.'
@@ -195,7 +195,7 @@ if __name__ == '__main__':
                                                        'for multi-GPU training. For model parallelism instead of ' \
                                                        'data parallelism, modifications must be made to the code.'
     config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = 0.8
+    config.gpu_options.per_process_gpu_memory_fraction = 1.0
     config.gpu_options.allow_growth=True
     set_session(tf.Session(config=config))
 
