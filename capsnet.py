@@ -218,10 +218,10 @@ def CapsNetR3(input_shape, n_class=2):
         #mask_layer = mask_layer[:,:,3]
         recon_remove_dim = layers.Reshape((H.value, W.value, modalities*A.value))(mask_layer)
 
-        recon_1 = layers.Conv2D(filters=64, kernel_size=1, padding='same', kernel_initializer='he_normal',
+        recon_1 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_1')(recon_remove_dim)
 
-        recon_2 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
+        recon_2 = layers.Conv2D(filters=256, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_2')(recon_1)
 
         out_recon = layers.Conv2D(filters=modalities, kernel_size=1, padding='same', kernel_initializer='he_normal',
