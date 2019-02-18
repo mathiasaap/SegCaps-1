@@ -231,13 +231,15 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
     history = model.fit_generator(
         generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
-                               stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset, num_output_classes=num_output_classes),
-        max_queue_size=60, workers=24, use_multiprocessing=True, 
+                               stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset, 
+                               num_output_classes=num_output_classes),
+        max_queue_size=args.max_queue_size, workers=args.workers, use_multiprocessing=args.use_multiprocessing==1,
         steps_per_epoch=args.steps_per_epoch,
         validation_data=generate_val_batches(args.data_root_dir, val_list, net_input_shape, net=args.net,
                                              batchSize=args.batch_size,  numSlices=args.slices, subSampAmt=0,
-                                             stride=5, shuff=args.shuffle_data, dataset=args.dataset, num_output_classes=num_output_classes),
-        validation_steps=1200, # Set validation stride larger to see more of the data.
+                                             stride=5, shuff=args.shuffle_data, dataset=args.dataset, 
+                                             num_output_classes=num_output_classes),
+        validation_steps=args.validation_steps, # Set validation stride larger to see more of the data.
         epochs=args.epochs,
         callbacks=callbacks,
         verbose=1)

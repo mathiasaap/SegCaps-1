@@ -127,6 +127,8 @@ def CapsNetR3(input_shape, n_class=2):
     filter_multiplier = 1
     atoms_base = 16*filter_multiplier
     
+    modalities = 4 # replace with argument later
+    
     x = layers.Input(shape=input_shape)
 
     # Layer 1: Just a conventional Conv2D layer
@@ -206,24 +208,23 @@ def CapsNetR3(input_shape, n_class=2):
     _, H, W, C, A = seg_caps.get_shape()
     print(H.value, W.value, C.value, A.value)
     
-    y = layers.Input(shape=input_shape[:-1]+(input_shape[-1],), name='recon_input')
+    y = layers.Input(shape=input_shape[:-1]+(1,), name='recon_input')
+    
     masked_by_y = Mask()([seg_caps, y])  # The true label is used to mask the output of capsule layer. For training
-    print(masked_by_y.shape)
-    #assert False
     masked = Mask()(seg_caps)  # Mask using the capsule with maximal length. For prediction
 
     def shared_decoder(mask_layer):
         #print(H.value, W.value, A.value*4)
         #mask_layer = mask_layer[:,:,3]
-        recon_remove_dim = layers.Reshape((H.value, W.value, 4*A.value))(mask_layer)
+        recon_remove_dim = layers.Reshape((H.value, W.value, modalities*A.value))(mask_layer)
 
-        recon_1 = layers.Conv2D(filters=64, kernel_size=1, padding='same', kernel_initializer='he_normal',
+        recon_1 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_1')(recon_remove_dim)
 
-        recon_2 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
+        recon_2 = layers.Conv2D(filters=256, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_2')(recon_1)
 
-        out_recon = layers.Conv2D(filters=input_shape[-1], kernel_size=1, padding='same', kernel_initializer='he_normal',
+        out_recon = layers.Conv2D(filters=modalities, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                   activation='sigmoid', name='out_recon')(recon_2)
 
         return out_recon

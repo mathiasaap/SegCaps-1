@@ -28,9 +28,6 @@ from keras.backend.tensorflow_backend import set_session
 
 
 def main(args):
-    args.num_splits = 5
-    args.steps_per_epoch = 1000
-    args.dataset = 'heart'
     # Ensure training, testing, and manip are not all turned off
     assert (args.train or args.test or args.manip), 'Cannot have train, test, and manip all set to 0, Nothing to do.'
 
@@ -116,6 +113,8 @@ if __name__ == '__main__':
                         help='/path/to/trained_model.hdf5 from root. Set to "" for none.')
     parser.add_argument('--split_num', type=int, default=0,
                         help='Which training split to train/test on.')
+    parser.add_argument('--num_splits', type=int, default=2,
+                        help='Number of training splits to create.')
     parser.add_argument('--net', type=str.lower, default='segcapsr3',
                         choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'unet', 'tiramisu', 'isensee'],
                         help='Choose your network.')
@@ -129,7 +128,7 @@ if __name__ == '__main__':
                         help='Whether or not to shuffle the training data (both per epoch and in slice order.')
     parser.add_argument('--aug_data', type=int, default=1, choices=[0,1],
                         help='Whether or not to use data augmentation during training.')
-    parser.add_argument('--loss', type=str.lower, default='w_bce', choices=['bce', 'w_bce', 'dice', 'mar', 'w_mar', 'multi_dice'],
+    parser.add_argument('--loss', type=str.lower, default='multi_dice', choices=['bce', 'w_bce', 'dice', 'mar', 'w_mar', 'multi_dice'],
                         help='Which loss to use. "bce" and "w_bce": unweighted and weighted binary cross entropy'
                              '"dice": soft dice coefficient, "mar" and "w_mar": unweighted and weighted margin loss.')
     parser.add_argument('--batch_size', type=int, default=1,
@@ -140,6 +139,11 @@ if __name__ == '__main__':
                         help="If using capsnet: The coefficient (weighting) for the loss of decoder")
     parser.add_argument('--slices', type=int, default=1,
                         help='Number of slices to include for training/testing.')
+    parser.add_argument('--dataset', type=str.lower, default='brats', choices=['brats', 'luna16', 'heart'],
+                        help='Which dataset to use.')
+    parser.add_argument('--out_classes', type=int, default=4,
+                        help='Number of classes used by dataset.')
+    
     parser.add_argument('--subsamp', type=int, default=-1,
                         help='Number of slices to skip when forming 3D samples for training. Enter -1 for random '
                              'subsampling up to 5% of total slices.')
@@ -165,6 +169,10 @@ if __name__ == '__main__':
                         help='Number of epochs to run. Any positive integer')
     parser.add_argument('--out_classes', type=int, default=2,
                         help='Number of output classes. Any positive integer')
+    parser.add_argument('--steps_per_epoch', type=int, default=1000,
+                        help='Number of training steps to run every epoch. Any positive integer')
+    parser.add_argument('--validation_steps', type=int, default=600,
+                        help='Number of validation steps to run every epoch. Any positive integer')
     parser.add_argument('--which_gpus', type=str, default="0",
                         help='Enter "-2" for CPU only, "-1" for all GPUs available, '
                              'or a comma separated list of GPU id numbers ex: "0,1,4".')
@@ -172,6 +180,18 @@ if __name__ == '__main__':
                         help='Number of GPUs you have available for training. '
                              'If entering specific GPU ids under the --which_gpus arg or if using CPU, '
                              'then this number will be inferred, else this argument must be included.')
+
+    parser.add_argument('--use_multiprocessing', type=int, default=1,
+                help='Use multiprocessing: [0, 1]. Default: 1')
+    
+    parser.add_argument('--workers', type=int, default=12,
+            help='Thread workers')
+    
+    parser.add_argument('--max_queue_size', type=int, default=32,
+        help='Max queue size. Too high will crash due to memory allocation failure.')
+    
+    
+    
 
     arguments = parser.parse_args()
 
