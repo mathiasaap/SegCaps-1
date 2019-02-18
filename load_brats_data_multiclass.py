@@ -25,6 +25,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import random
 import time
+from load_heart import convert_heart_data_to_numpy
 
 from scipy import linalg
 from scipy.ndimage.filters import gaussian_filter
@@ -277,7 +278,7 @@ std = np.array([104.02684046042094, 136.06477850668273, 137.4833895418739, 109.2
 one_hot_max = 1.0 # Value of positive class in one hot
 
 
-def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
+def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
     fname = img_name[:-7]
     numpy_path = join(root_path, 'np_files')
     img_path = join(root_path, 'imgs')
@@ -397,16 +398,30 @@ def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
 @threadsafe_generator
 @threadsafe_generator
 def generate_train_batches(root_path, train_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
-                           stride=1, downSampAmt=1, shuff=1, aug_data=1):
+                           stride=1, downSampAmt=1, shuff=1, aug_data=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
-    print(net_input_shape)
     modalities = net_input_shape[2] // numSlices
+    x_shape = net_input_shape[0]
+    y_shape = net_input_shape[1]
+    
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    print("img_batch " + str(img_batch.shape))
-    mask_shape = [net_input_shape[0],net_input_shape[1], 4]
+    mask_shape = [x_shape, y_shape, num_output_classes]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
-    mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
+    
+    if dataset == 'brats':
+        np_converter = convert_brats_data_to_numpy
+        frame_pixels_0 = 8
+        frame_pixels_1 = -8
+        empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+    elif dataset == 'heart':
+        np_converter = convert_heart_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = y_shape
+        empty_mask = np.array([one_hot_max, 1-one_hot_max])
+    else:
+        assert False, 'Dataset not recognized'
+    
     while True:
         if shuff:
             shuffle(train_list)
@@ -421,7 +436,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     train_mask = data['mask']
             except:
                 print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-                train_img, train_mask = convert_data_to_numpy(root_path, scan_name)
+                train_img, train_mask = np_converter(root_path, scan_name) 
                 if np.array_equal(train_img,np.zeros(1)):
                     continue
                 else:
@@ -435,35 +450,29 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     numSlices -= 1
                 sideSlices = numSlices / 2
 
-            indicies = np.arange(0, train_img.shape[2], stride)
             z_shape = train_img.shape[2]
+            indicies = np.arange(0, z_shape, stride)
             
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                if not np.any(train_mask[:, :, j : j+numSlices]):
+                if not np.any(train_mask[:, :, j, 1:]):
                     continue
                 if aug_data:
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(240, 240, -1)
+                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(x_shape, y_shape, -1)
                     insertion_index = -modalities
                     img_index = 0
                     for k in range(j-sideSlices, j+sideSlices+1):
                         insertion_index += modalities
                         if (k < 0): continue
                         if (k >= z_shape): break
-                        img_batch[count, 8:-8, 8:-8, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                        img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
                         img_index += modalities
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j]
-                elif img_batch.ndim == 5:
-                    # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                    img_batch[count] = 0
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    img_batch[count, 8:-8, 8:-8, :, :] = train_img[:, :, j-sideSlices : j+sideSlices+1]
-                    mask_batch[count, 8:-8, 8:-8, :, :] = train_mask[:, :, j]
+                    mask_batch[count] = empty_mask
+                    mask_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :] = train_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -502,7 +511,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                         yield ([img_batch, mask_batch], [mask_batch, mask_batch*img_batch])
                     else:
                         yield (img_batch, mask_batch)
-
+        print('mask batch ' + str(mask_batch.shape))
         if count != 0:
             if net.find('caps') != -1:
                 yield ([img_batch[:count, ...], mask_batch[:count, ...]],
@@ -512,14 +521,29 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
 
 @threadsafe_generator
 def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
-                         stride=1, downSampAmt=1, shuff=1):
+                         stride=1, downSampAmt=1, shuff=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for validation
     modalities = net_input_shape[2] // numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    mask_shape = [net_input_shape[0],net_input_shape[1], 4]
+    x_shape = net_input_shape[0]
+    y_shape = net_input_shape[1]
+    mask_shape = [net_input_shape[0],net_input_shape[1], num_output_classes]
+    print('Mask shape:' + str(mask_shape))
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
-    mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-
+    
+    if dataset == 'brats':
+        np_converter = convert_brats_data_to_numpy
+        frame_pixels_0 = 8
+        frame_pixels_1 = -8
+        empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+    elif dataset == 'heart':
+        np_converter = convert_heart_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = y_shape
+        empty_mask = np.array([one_hot_max, 1-one_hot_max])
+    else:
+        assert False, 'Dataset not recognized'
+    
     while True:
         if shuff:
             shuffle(val_list)
@@ -533,7 +557,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     val_mask = data['mask']
             except:
                 print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-                val_img, val_mask = convert_data_to_numpy(root_path, scan_name)
+                val_img, val_mask = np_converter(root_path, scan_name)
                 if np.array_equal(val_img,np.zeros(1)):
                     continue
                 else:
@@ -546,8 +570,8 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     numSlices -= 1
                 sideSlices = numSlices / 2
 
-            indicies = np.arange(0, val_img.shape[2], stride)
             z_shape = val_img.shape[2]
+            indicies = np.arange(0, z_shape, stride)
             
             if shuff:
                 shuffle(indicies)
@@ -557,24 +581,18 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(240, 240, -1)
+                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(x_shape, y_shape, -1)
                     insertion_index = -modalities
                     img_index = 0
                     for k in range(j-sideSlices, j+sideSlices+1):
                         insertion_index += modalities
                         if (k < 0): continue
                         if (k >= z_shape): break
-                        img_batch[count, 8:-8, 8:-8, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                        img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
                         img_index += modalities
                     
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j]
-                elif img_batch.ndim == 5:
-                    # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                    img_batch[count] = 0
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    img_batch[count, 8:-8, 8:-8, :, :] = val_img[:, :, j : j+numSlices]
-                    mask_batch[count, 8:-8, 8:-8, :, :] = val_mask[:, :, j]
+                    mask_batch[count] = empty_mask
+                    mask_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :] = val_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -596,14 +614,28 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
 
 @threadsafe_generator
 def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, numSlices=1, subSampAmt=0,
-                          stride=1, downSampAmt=1):
+                          stride=1, downSampAmt=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for testing
     print('\nload_3D_data.generate_test_batches')
     print("Batch size {}".format(batchSize))
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     modalities = net_input_shape[2] // numSlices
+    x_shape = net_input_shape[0]
+    y_shape = net_input_shape[1]
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
+    
+    if dataset == 'brats':
+        np_converter = convert_brats_data_to_numpy
+        frame_pixels_0 = 8
+        frame_pixels_1 = -8
+    elif dataset == 'heart':
+        np_converter = convert_heart_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = y_shape
+    else:
+        assert False, 'Dataset not recognized'
+    
     for i, scan_name in enumerate(test_list):
         try:
             scan_name = scan_name[0]
@@ -614,7 +646,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         except Exception as err:
             print(err)
             print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-            test_img = convert_data_to_numpy(root_path, scan_name, no_masks=False)[0]
+            test_img = np_converter(root_path, scan_name, no_masks=False)[0]
             if np.array_equal(test_img,np.zeros(1)):
                 continue
             else:
@@ -627,26 +659,24 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
                 numSlices -= 1
             sideSlices = numSlices / 2
 
-        indicies = np.arange(0, test_img.shape[2], stride)
         z_shape = test_img.shape[2]
+        indicies = np.arange(0, z_shape, stride)
 
-        #print(test_img.shape)
-        indicies = np.arange(0, test_img.shape[2], stride)
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
-                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(240, 240, -1)
+                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(x_shape, y_shape, -1)
                 insertion_index = -modalities
                 img_index = 0
                 for k in range(j-sideSlices, j+sideSlices+1):
                     insertion_index += modalities
                     if (k < 0): continue
                     if (k >= z_shape): break
-                    img_batch[count, 8:-8, 8:-8, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                    img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
                     img_index += modalities
             elif img_batch.ndim == 5:
                 # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                img_batch[count, 8:-8, 8:-8, :, :] = test_img[:, :,  j : j+numSlices]
+                img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :, :] = test_img[:, :,  j : j+numSlices]
             else:
                 print('Error this function currently only supports 2D and 3D data.')
                 exit(0)

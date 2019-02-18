@@ -97,7 +97,8 @@ def compile_model(args, net_input_shape, uncomp_model):
 
     # If using CPU or single GPU
     if args.gpus <= 1:
-
+        print(loss)
+        print(loss_weighting)
         uncomp_model.compile(optimizer=opt, loss=loss, loss_weights=loss_weighting, metrics=metrics)
         return uncomp_model
     # If using multiple GPUs
@@ -160,9 +161,16 @@ def plot_training(training_history, arguments):
     plt.close()
 
 DEBUG = False
-def train(args, train_list, val_list, u_model, net_input_shape):
+def train(args, train_list, val_list, u_model, net_input_shape, num_output_classes=2):
     # Compile the loaded model
+    print(net_input_shape)
     model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
+    if args.weights_path:
+        weights_path = join(args.data_root_dir, args.weights_path)
+        try:
+            model.load_weights(weights_path)
+        except:
+            assert False, 'Unable to find weights path.'
     # Set the callbacks
     callbacks = get_callbacks(args)
     #val_list = train_list
@@ -172,7 +180,7 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     if DEBUG:
         batch_gen = generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                    batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
-                                   stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data)
+                                   stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset, num_output_classes=num_output_classes)
         #import random
         for batch in batch_gen:
             imgs, masks = batch
@@ -223,12 +231,12 @@ def train(args, train_list, val_list, u_model, net_input_shape):
     history = model.fit_generator(
         generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
-                               stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data),
-        max_queue_size=60, workers=12, use_multiprocessing=True,
+                               stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset, num_output_classes=num_output_classes),
+        max_queue_size=60, workers=24, use_multiprocessing=True, 
         steps_per_epoch=args.steps_per_epoch,
         validation_data=generate_val_batches(args.data_root_dir, val_list, net_input_shape, net=args.net,
                                              batchSize=args.batch_size,  numSlices=args.slices, subSampAmt=0,
-                                             stride=5, shuff=args.shuffle_data),
+                                             stride=5, shuff=args.shuffle_data, dataset=args.dataset, num_output_classes=num_output_classes),
         validation_steps=1200, # Set validation stride larger to see more of the data.
         epochs=args.epochs,
         callbacks=callbacks,

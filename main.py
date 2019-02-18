@@ -29,9 +29,8 @@ from keras.backend.tensorflow_backend import set_session
 
 def main(args):
     args.num_splits = 5
-    args.out_classes = 4
-    args.steps_per_epoch = 3000
-    args.dataset = 'brats'
+    args.steps_per_epoch = 1000
+    args.dataset = 'heart'
     # Ensure training, testing, and manip are not all turned off
     assert (args.train or args.test or args.manip), 'Cannot have train, test, and manip all set to 0, Nothing to do.'
 
@@ -46,9 +45,12 @@ def main(args):
     # Get image properties from first image. Assume they are all the same.
     print(train_list)
     img_shape = sitk.GetArrayFromImage(sitk.ReadImage(join(args.data_root_dir, 'imgs', train_list[0][0]))).shape
-    net_input_shape = (img_shape[1], img_shape[2], args.slices)
+    print(img_shape)
+    
+    modalities = 1
     if args.dataset == 'brats':
-        net_input_shape = (256, 256, args.slices * 4)
+        modalities = 4
+    net_input_shape = (img_shape[1], img_shape[2], args.slices*modalities)
 
     # Create the model for training/testing/manipulation
     model_list = create_model(args=args, input_shape=net_input_shape)
@@ -88,18 +90,11 @@ def main(args):
     if args.train:
         from train import train
         # Run training
-        if args.weights_path:
-            weights_path = join(args.data_root_dir, args.weights_path)
-            try:
-                model_list[0].load_weights(weights_path)
-            except:
-                assert False, 'Unable to find weights path.'
-        train(args, train_list, val_list, model_list[0], net_input_shape)
-        
+        train(args, train_list, val_list, model_list[0], net_input_shape, num_output_classes=args.out_classes)
         args.weights_path = ''
 
     if args.test:
-        if args.dataset == 'brats':
+        if args.dataset == 'brats' or args.dataset == 'heart':
             from test_multiclass import test
             test(args, test_list, model_list, net_input_shape)
         else:
@@ -168,6 +163,8 @@ if __name__ == '__main__':
                         help='0 or 1')
     parser.add_argument('--epochs', type=int, default=50,
                         help='Number of epochs to run. Any positive integer')
+    parser.add_argument('--out_classes', type=int, default=2,
+                        help='Number of output classes. Any positive integer')
     parser.add_argument('--which_gpus', type=str, default="0",
                         help='Enter "-2" for CPU only, "-1" for all GPUs available, '
                              'or a comma separated list of GPU id numbers ex: "0,1,4".')

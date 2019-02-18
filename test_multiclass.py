@@ -34,47 +34,25 @@ from load_brats_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
-    f, ax = plt.subplots(2, 4, figsize=(15, 15))
+    f, ax = plt.subplots(2, raw_data.shape[3], figsize=(15, 15))
 
+    names = ['Class 1', 'Class 2', 'Class 3', 'Class 4']
     mi = np.min(raw_data[slice_num])
     ma = np.max(raw_data[slice_num])
     
-    ax[0,0].imshow(raw_data[slice_num, :, :, 0], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
-    ax[0,0].set_title('Background')
-    ax[0,0].axis('off')
-
-    ax[0,1].imshow(raw_data[slice_num, :, :, 1], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
-    ax[0,1].set_title('Edema')
-    ax[0,1].axis('off')
+    for j in range(raw_data.shape[3]):
+        ax[0,j].imshow(raw_data[slice_num, :, :, j], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
+        ax[0,j].set_title(names[j])
+        ax[0,j].axis('off')
     
-    ax[0,2].imshow(raw_data[slice_num, :, :, 2], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
-    ax[0,2].set_title('Enhancing')
-    ax[0,2].axis('off')
-    
-    ax[0,3].imshow(raw_data[slice_num, :, :, 3], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
-    ax[0,3].set_title('Non Enhancing')
-    ax[0,3].axis('off')
-    
-    
-    ax[1,0].imshow(label[slice_num, :, :, 0], alpha=1, cmap='Reds')
-    ax[1,0].set_title('Background label')
-    ax[1,0].axis('off')
-
-    ax[1,1].imshow(label[slice_num, :, :, 1], alpha=1, cmap='Reds')
-    ax[1,1].set_title('Edema label')
-    ax[1,1].axis('off')
-    
-    ax[1,2].imshow(label[slice_num, :, :, 2], alpha=1, cmap='Reds')
-    ax[1,2].set_title('Enhancing label')
-    ax[1,2].axis('off')
-    
-    ax[1,3].imshow(label[slice_num, :, :, 3], alpha=1, cmap='Reds')
-    ax[1,3].set_title('Non Enhancing label')
-    ax[1,3].axis('off')
+    for j in range(raw_data.shape[3]):
+        ax[1,j].imshow(label[slice_num, :, :, j], alpha=1, cmap='Reds')
+        ax[1,j].set_title(names[j])
+        ax[1,j].axis('off')
 
 
     fig = plt.gcf()
-    fig.suptitle("Activation maps for BRATS {}".format(index))
+    fig.suptitle("Activation maps for img {}".format(index))
 
     plt.savefig(join(args.data_root_dir, 'results', 'activations', 'img_{}'.format(index) + '.png'),
                 format='png', bbox_inches='tight')
@@ -97,6 +75,8 @@ def test(args, test_list, model_list, net_input_shape):
     
     if args.dataset == 'brats':
         RESOLUTION = 240
+    elif args.dataset == 'heart':
+        RESOLUTION = 320
     else:
         RESOLUTION = 512
 
@@ -167,23 +147,23 @@ def test(args, test_list, model_list, net_input_shape):
                                                                               batchSize=1,
                                                                               numSlices=args.slices,
                                                                               subSampAmt=0,
-                                                                              stride=1),
+                                                                              stride=1, dataset = args.dataset, num_output_classes=args.out_classes),
                                                         steps=num_slices, max_queue_size=1, workers=1,
                                                         use_multiprocessing=False, verbose=1)
             
             print(output_array[0].shape)
             if args.net.find('caps') != -1:
-                if args.dataset == 'luna16':
-                    output = output_array[0][:,:,:]
-                else:
+                if args.dataset == 'brats':
                     output = output_array[0][:,8:-8,8:-8]
+                else:
+                    output = output_array[0][:,:,:]
                 print(output)
                 #recon = output_array[1][:,:,:,0]
             else:
-                if args.dataset == 'luna16':
-                    output = output_array[:,:,:,:]
-                else:
+                if args.dataset == 'brats':
                     output = output_array[:,8:-8,8:-8,:]
+                else:
+                    output = output_array[:,:,:,:]
                 
             output_raw = output
             output = oneHot2LabelMax(output)
@@ -191,7 +171,7 @@ def test(args, test_list, model_list, net_input_shape):
             #assert False
             label = output.astype(np.int64)
             #print(label[num_slices // 2, :, :])
-            outputOnehot = np.eye(4)[label].astype(np.uint8) 
+            outputOnehot = np.eye(args.out_classes)[label].astype(np.uint8) 
                     
 
             output_img = sitk.GetImageFromArray(output)
@@ -209,7 +189,7 @@ def test(args, test_list, model_list, net_input_shape):
             #output_mask.CopyInformation(sitk_img)
 
             print('Saving Output')
-            if args.dataset == 'brats':
+            if args.dataset != 'luna':
                 sitk.WriteImage(output_img, join(raw_out_dir, img[0][:-7] + '_raw_output' + img[0][-7:]))
                 sitk.WriteImage(output_mask, join(fin_out_dir, img[0][:-7] + '_final_output' + img[0][-7:]))
 
@@ -217,42 +197,36 @@ def test(args, test_list, model_list, net_input_shape):
                 sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
                 gt_data = sitk.GetArrayFromImage(sitk_mask)
                 label = gt_data.astype(np.int64)
-                gtOnehot = np.eye(4)[label].astype(np.uint8) 
+                gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8) 
                 create_activation_image(args, output_raw, gtOnehot, index=i)
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')
                 f, ax = plt.subplots(2, 3, figsize=(10, 5))
 
+                colors = ['Greys', 'Greens', 'Reds', 'Blues']
                 fileTypeLength = 7
 
-                img_data = img_data[3]
+                print(img_data.shape)
+                print(outputOnehot.shape)
+                if args.dataset == 'brats':
+                    img_data = img_data[3]
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
 
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 0], alpha=0.1, cmap='Greys')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 1], alpha=0.5, cmap='Greens')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 3], alpha=0.5, cmap='Reds')
-                ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, 2], alpha=0.5, cmap='Blues')
+                for class_num in range(outputOnehot.shape[3]):
+                    ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
 
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
                 ax[0,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 0], alpha=0.1, cmap='Greys')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 1], alpha=0.5, cmap='Greens')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 3], alpha=0.5, cmap='Reds')
-                ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, 2], alpha=0.5, cmap='Blues')
+                for class_num in range(outputOnehot.shape[3]):
+                    ax[0,1].imshow(outputOnehot[num_slices // 2, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[0,1].axis('off')
 
                 ax[0,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 0], alpha=0.1,
-                             cmap='Greys')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 1], alpha=0.5,
-                             cmap='Greens')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 3], alpha=0.5,
-                             cmap='Reds')
-                ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, 2], alpha=0.5,
-                             cmap='Blues')
+                for class_num in range(outputOnehot.shape[3]):
+                    ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
                 #ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,cmap='Reds')
                 ax[0,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
@@ -261,32 +235,17 @@ def test(args, test_list, model_list, net_input_shape):
                 
                 #print(gt_data[num_slices // 3, :, :])
                 ax[1,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
-                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.5, cmap='Reds')
-                #ax[1,0].imshow(gt_data[num_slices // 3, :, 0], alpha=0.5, cmap='Greys')
-                #ax[1,0].imshow(gt_data[num_slices // 3, :, 1], alpha=0.5, cmap='Greens')
-                #ax[1,0].imshow(gt_data[num_slices // 3, :, 2], alpha=0.5, cmap='Reds')
-                #ax[1,0].imshow(gt_data[num_slices // 3, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
-                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=3)
+                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=args.out_classes-1)
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
-                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.5, cmap='Reds')
-                #ax[1,1].imshow(gt_data[num_slices // 2, :, 0], alpha=0.5, cmap='Greys')
-                #ax[1,1].imshow(gt_data[num_slices // 2, :, 1], alpha=0.5, cmap='Greens')
-                #ax[1,1].imshow(gt_data[num_slices // 2, :, 2], alpha=0.5, cmap='Reds')
-                #ax[1,1].imshow(gt_data[num_slices // 2, :, 3], alpha=0.5, cmap='Oranges')
                 ax[1,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
-                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=3)
+                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=args.out_classes-1)
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-
-                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=3)
-                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 0], alpha=0.5, cmap='Greys')
-                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 1], alpha=0.5, cmap='Greens')
-                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 2], alpha=0.5, cmap='Reds')
-                #ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, 3], alpha=0.5, cmap='Oranges')
+                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=args.out_classes-1)
                 ax[1,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[1,2].axis('off')
