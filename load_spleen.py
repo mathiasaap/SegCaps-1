@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 
-def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
+def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
     fname = img_name[:-7]
     numpy_path = join(root_path, 'np_files')
     img_path = join(root_path, 'imgs')
@@ -21,10 +21,10 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
     except:
         pass
 
-    heart_min = -0.660214483738
-    heart_max = 2196.0
-    mean = np.array([170.25972919418757])
-    std = np.array([257.885508476468])
+    spleen_min = -1024.0
+    spleen_max = 3072.0
+    mean = np.array([-541.1801174550513])
+    std = np.array([492.2428379436813])
 
     if not overwrite:
         try:
@@ -44,8 +44,8 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
         img -= mean
         img /= std
         
-        img = np.clip(img, + heart_min, heart_max)
-        img = (img - heart_min) / (heart_max - heart_min)
+        img = np.clip(img, + spleen_min, spleen_max)
+        img = (img - spleen_min) / (spleen_max - spleen_min)
         
         #img = img[:, :, :, 3] # Select only t1w during initial testing
         #img = (img-img.mean())/img.std()

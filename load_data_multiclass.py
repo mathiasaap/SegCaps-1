@@ -26,7 +26,10 @@ from tqdm import tqdm
 import random
 import time
 from load_heart import convert_heart_data_to_numpy
+from load_spleen import convert_spleen_data_to_numpy
+from load_brats import convert_brats_data_to_numpy
 from postprocess import oneHot2LabelMax
+from augmentation import augment_random, elasticDeform2D, elasticDeform3D
 
 from scipy import linalg
 from scipy.ndimage.filters import gaussian_filter
@@ -136,118 +139,6 @@ def split_data(root_path, num_splits):
                     writer.writerow([basename(mask_list[i])])
             n += 1
             
-def elasticDeform3D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
-    if is_random is False:
-        random_state = np.random.RandomState(None)
-    else:
-        random_state = np.random.RandomState(int(time.time()))
-
-    modalities = x.shape[3]
-    classes = y.shape[3]
-
-    distX = random_state.rand(*x.shape[:-1])
-    distY = random_state.rand(*x.shape[:-1])
-    distZ = random_state.rand(*x.shape[:-1])
-
-    dx = gaussian_filter((distX * 2 - 1), sigma, mode=mode, cval=cval) * alpha
-    dy = gaussian_filter((distY * 2 - 1), sigma, mode=mode, cval=cval) * alpha
-    dz = gaussian_filter((distZ * 2 - 1), sigma, mode=mode, cval=cval) * alpha
-
-    dataChannels = []
-    for modal in range(modalities):
-        x_, y_, z_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), np.arange(x.shape[2]), indexing='ij')
-        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1)), np.reshape(z_ + dz, (-1, 1))
-        dataChannels.append(map_coordinates(x[:,:,:,modal], indices, order=1).reshape(x.shape[:-1]))
-
-    outputChannels = []
-    for c in range(classes):
-        x_, y_, z_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), np.arange(x.shape[2]), indexing='ij')
-        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1)), np.reshape(z_ + dz, (-1, 1))
-        outputChannels.append(map_coordinates(y[:,:,:,c], indices, order=1).reshape(x.shape[:-1]))
-
-    #x_, y_, z_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), np.arange(x.shape[2]), indexing='ij')
-    #indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1)), np.reshape(z_ + dz, (-1, 1))
-
-    newX = np.zeros(x.shape)
-    #y = map_coordinates(y, indices, order=1).reshape(y.shape)
-    for modal in range(len(dataChannels)):
-        newX[:,:,:,modal] = dataChannels[modal]
-
-    #newYValues = np.zeros(y.shape)
-    #newY = np.zeros(y.shape)
-    for c in range(len(outputChannels)):
-        y[:,:,:,c] = outputChannels[c]
-
-
-    return newX, y
-    #labels rounded to preverse index property
-    #return newX, np.round(y)
-def elasticDeform2D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
-    if is_random is False:
-        random_state = np.random.RandomState(None)
-    else:
-        random_state = np.random.RandomState(int(time.time()))
-
-    modalities = x.shape[2]
-    classes = y.shape[2]
-
-    distX = random_state.rand(*x.shape[:-1])
-    distY = random_state.rand(*x.shape[:-1])
-
-    dx = gaussian_filter((distX * 2 - 1), sigma, mode=mode, cval=cval) * alpha
-    dy = gaussian_filter((distY * 2 - 1), sigma, mode=mode, cval=cval) * alpha
-
-    dataChannels = []
-    for modal in range(modalities):
-        x_, y_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), indexing='ij')
-        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1))
-        dataChannels.append(map_coordinates(x[:,:,modal], indices, order=1).reshape(x.shape[:-1]))
-
-    outputChannels = []
-    for c in range(classes):
-        x_, y_ = np.meshgrid(np.arange(x.shape[0]), np.arange(x.shape[1]), indexing='ij')
-        indices = np.reshape(x_ + dx, (-1, 1)), np.reshape(y_ + dy, (-1, 1))
-        outputChannels.append(map_coordinates(y[:,:,c], indices, order=1).reshape(x.shape[:-1]))
-
-    newX = np.zeros(x.shape)
-    for modal in range(len(dataChannels)):
-        newX[:,:,modal] = dataChannels[modal]
-
-    for c in range(len(outputChannels)):
-        y[:,:,c] = outputChannels[c]
-
-
-    return newX, y
-            
-            
-
-
-def augment_random(image, label):
-    rot = [random.randint(0, 3) for i in range(3)]
-    flip = [random.randint(0, 1) for i in range(3)]
-    '''if rot[0]:
-        image = np.rot90(image, rot[0], axes=(1, 2))
-        label = np.rot90(label, rot[0], axes=(1, 2))
-    if rot[1]:
-        image = np.rot90(image, rot[1], axes=(0, 2))
-        label = np.rot90(label, rot[1], axes=(0, 2))'''
-    if rot[2]:
-        image = np.rot90(image, rot[2], axes=(0, 1))
-        label = np.rot90(label, rot[2], axes=(0, 1))
-
-    if flip[0]:
-        image = image[::-1]
-        label = label[::-1]
-    if flip[1]:
-        image = image[:, ::-1]
-        label = label[:, ::-1]
-    if flip[2]:
-        image = image[:, :, ::-1]
-        label = label[:, :, ::-1]
-        
-    #image, label = elasticDeform3D(image, label, alpha=720, sigma=24, mode='reflect', is_random=True)
-        
-    return image, label
 
 
 ''' Make the generators threadsafe in case of multiple threads '''
@@ -274,121 +165,7 @@ def threadsafe_generator(f):
         return threadsafe_iter(f(*a, **kw))
     return g
 
-mean = np.array([18.426106306720985, 24.430354760142666, 24.29803657467962, 19.420110564555472])
-std = np.array([104.02684046042094, 136.06477850668273, 137.4833895418739, 109.29833288911334])
 one_hot_max = 1.0 # Value of positive class in one hot
-
-
-def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
-    fname = img_name[:-7]
-    numpy_path = join(root_path, 'np_files')
-    img_path = join(root_path, 'imgs')
-    mask_path = join(root_path, 'masks')
-    fig_path = join(root_path, 'figs')
-    try:
-        makedirs(numpy_path)
-    except:
-        pass
-    try:
-        makedirs(fig_path)
-    except:
-        pass
-    # The min and max pixel values in a ct image file
-    brats_min = -0.18
-    brats_max = 10
-
-    if not overwrite:
-        try:
-            with np.load(join(numpy_path, fname + '.npz')) as data:
-                return data['img'], data['mask']
-        except:
-            pass
-
-    try:
-        itk_img = sitk.ReadImage(join(img_path, img_name))
-
-        img = sitk.GetArrayFromImage(itk_img)
-
-        img = img.astype(np.float32)
-
-        img = np.rollaxis(img, 0, 4)
-        img = np.rollaxis(img, 0, 3) 
-        
-      
-        img -= mean
-        img /= std
-        
-        img = np.clip(img, + brats_min, brats_max)
-        img = (img - brats_min) / (brats_max - brats_min)
-        
-        
-        if not no_masks:
-            itk_mask = sitk.ReadImage(join(mask_path, img_name))
-            mask = sitk.GetArrayFromImage(itk_mask)
-            mask = np.rollaxis(mask, 0, 3)
-            #mask[mask < 0.5] = 0 # Background
-            #mask[mask > 0.5] = 1 # Edema, Enhancing and Non enhancing tumor
-            
-            label = mask.astype(np.int64)
-            masks = np.eye(4)[label]
-            #mask = masks.astype(np.float32)
-            
-            #masks[masks>0.5] = one_hot_max
-            #masks[masks<0.5] = 1-one_hot_max
-            mask = masks
-            #mask = masks.astype(np.uint8)
-            
-
-        try:
-            show_modal = 3
-            f, ax = plt.subplots(1, 3, figsize=(15, 5))
-
-            ax[0].imshow(img[:, :, img.shape[2] // 3, show_modal], cmap='gray')
-            if not no_masks:
-                ax[0].imshow(mask[:, :, img.shape[2] // 3], alpha=0.40, cmap='Reds')
-            ax[0].set_title('Slice {}/{}'.format(img.shape[2] // 3, img.shape[2]))
-            ax[0].axis('off')
-
-            ax[1].imshow(img[:, :, img.shape[2] // 2, show_modal], cmap='gray')
-            if not no_masks:
-                ax[1].imshow(mask[:, :, img.shape[2] // 2], alpha=0.40, cmap='Reds')
-            ax[1].set_title('Slice {}/{}'.format(img.shape[2] // 2, img.shape[2]))
-            ax[1].axis('off')
-
-            ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4, show_modal], cmap='gray')
-            if not no_masks:
-                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4], alpha=0.40, cmap='Reds')
-            ax[2].set_title('Slice {}/{}'.format(img.shape[2] // 2 + img.shape[2] // 4, img.shape[2]))
-            ax[2].axis('off')
-
-            fig = plt.gcf()
-            fig.suptitle(fname)
-            plt.savefig(join(fig_path, fname + '.png'), format='png', bbox_inches='tight')
-            plt.close(fig)
-        except Exception as e:
-            print('\n'+'-'*100)
-            print('Error creating qualitative figure for {}'.format(fname))
-            print(e)
-            print('-'*100+'\n')
-
-        if not no_masks:
-            np.savez_compressed(join(numpy_path, fname + '.npz'), img=img, mask=mask)
-        else:
-            np.savez_compressed(join(numpy_path, fname + '.npz'), img=img)
-
-        if not no_masks:
-            return img, mask
-        else:
-            return img
-
-    except Exception as e:
-        print('\n'+'-'*100)
-        print('Unable to load img or masks for {}'.format(fname))
-        print(e)
-        print('Skipping file')
-        print('-'*100+'\n')
-
-        return np.zeros(1), np.zeros(1)
 
 
 @threadsafe_generator
@@ -410,8 +187,11 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset == 'heart':
-        np_converter = convert_heart_data_to_numpy
+    elif dataset in ['heart', 'spleen']:
+        if dataset == 'heart':
+            np_converter = convert_heart_data_to_numpy
+        else:
+            np_converter = convert_spleen_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
         empty_mask = np.array([one_hot_max, 1-one_hot_max])
@@ -555,7 +335,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset == 'heart':
+    elif dataset in ['heart', 'spleen']:
         np_converter = convert_heart_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
@@ -668,7 +448,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         frame_pixels_1 = -8
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset == 'heart':
+    elif dataset in ['heart', 'spleen']:
         np_converter = convert_heart_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]

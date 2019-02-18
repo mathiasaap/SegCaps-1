@@ -26,7 +26,7 @@ from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLRO
 import tensorflow as tf
 
 from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score
-from load_brats_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
+from load_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
 

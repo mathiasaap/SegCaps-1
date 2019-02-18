@@ -92,12 +92,11 @@ def main(args):
         args.weights_path = ''
 
     if args.test:
-        if args.dataset == 'brats' or args.dataset == 'heart':
-            from test_multiclass import test
+        if args.dataset == 'luna':
+            from test import test
             test(args, test_list, model_list, net_input_shape)
         else:
-            from test import test
-            # Run testing
+            from test_multiclass import test
             test(args, test_list, model_list, net_input_shape)
 
     if args.manip:
@@ -140,7 +139,7 @@ if __name__ == '__main__':
                         help="If using capsnet: The coefficient (weighting) for the loss of decoder")
     parser.add_argument('--slices', type=int, default=1,
                         help='Number of slices to include for training/testing.')
-    parser.add_argument('--dataset', type=str.lower, default='brats', choices=['brats', 'luna16', 'heart'],
+    parser.add_argument('--dataset', type=str.lower, default='brats', choices=['brats', 'luna16', 'heart', 'spleen'],
                         help='Which dataset to use.')
     parser.add_argument('--subsamp', type=int, default=-1,
                         help='Number of slices to skip when forming 3D samples for training. Enter -1 for random '
