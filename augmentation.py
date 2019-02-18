@@ -1,3 +1,9 @@
+import random
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.interpolation import map_coordinates
+import numpy as np
+import time
+
 def elasticDeform3D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
     if is_random is False:
         random_state = np.random.RandomState(None)

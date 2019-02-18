@@ -198,7 +198,7 @@ def test(args, test_list, model_list, net_input_shape):
                 gt_data = sitk.GetArrayFromImage(sitk_mask)
                 label = gt_data.astype(np.int64)
                 gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8) 
-                create_activation_image(args, output_raw, gtOnehot, index=i)
+                create_activation_image(args, output_raw, gtOnehot, slice_num=output_raw.shape[0] // 2, index=i)
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')
                 f, ax = plt.subplots(2, 3, figsize=(10, 5))

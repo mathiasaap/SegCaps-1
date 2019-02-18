@@ -32,8 +32,6 @@ from postprocess import oneHot2LabelMax
 from augmentation import augment_random, elasticDeform2D, elasticDeform3D
 
 from scipy import linalg
-from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage.interpolation import map_coordinates
 
 
 import matplotlib
