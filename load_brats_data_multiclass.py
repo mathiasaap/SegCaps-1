@@ -398,11 +398,9 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
     modalities = net_input_shape[2] // numSlices
-    x_shape = net_input_shape[0]
-    y_shape = net_input_shape[1]
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    mask_shape = [x_shape, y_shape, num_output_classes]
+    mask_shape = [net_input_shape[0], net_input_shape[1], num_output_classes]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
     
     if dataset == 'brats':
@@ -410,14 +408,18 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
         frame_pixels_0 = 8
         frame_pixels_1 = -8
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+        raw_x_shape = 240
+        raw_y_shape = 240
     elif dataset == 'heart':
         np_converter = convert_heart_data_to_numpy
         frame_pixels_0 = 0
-        frame_pixels_1 = y_shape
+        frame_pixels_1 = net_input_shape[0]
         empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        raw_x_shape = net_input_shape[0]
+        raw_y_shape = net_input_shape[1]
     else:
         assert False, 'Dataset not recognized'
-    
+
     while True:
         if shuff:
             shuffle(train_list)
@@ -458,7 +460,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(x_shape, y_shape, -1)
+                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
                     insertion_index = -modalities
                     img_index = 0
                     for k in range(j-sideSlices, j+sideSlices+1):
@@ -543,10 +545,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
     modalities = net_input_shape[2] // numSlices
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    x_shape = net_input_shape[0]
-    y_shape = net_input_shape[1]
     mask_shape = [net_input_shape[0],net_input_shape[1], num_output_classes]
-    print('Mask shape:' + str(mask_shape))
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
     
     if dataset == 'brats':
@@ -554,11 +553,15 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         frame_pixels_0 = 8
         frame_pixels_1 = -8
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+        raw_x_shape = 240
+        raw_y_shape = 240
     elif dataset == 'heart':
         np_converter = convert_heart_data_to_numpy
         frame_pixels_0 = 0
-        frame_pixels_1 = y_shape
+        frame_pixels_1 = net_input_shape[0]
         empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        raw_x_shape = net_input_shape[0]
+        raw_y_shape = net_input_shape[1]
     else:
         assert False, 'Dataset not recognized'
     
@@ -599,7 +602,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(x_shape, y_shape, -1)
+                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
                     insertion_index = -modalities
                     img_index = 0
                     for k in range(j-sideSlices, j+sideSlices+1):
@@ -656,8 +659,6 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
     print("Batch size {}".format(batchSize))
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     modalities = net_input_shape[2] // numSlices
-    x_shape = net_input_shape[0]
-    y_shape = net_input_shape[1]
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
     
@@ -665,10 +666,14 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         np_converter = convert_brats_data_to_numpy
         frame_pixels_0 = 8
         frame_pixels_1 = -8
+        raw_x_shape = 240
+        raw_y_shape = 240
     elif dataset == 'heart':
         np_converter = convert_heart_data_to_numpy
         frame_pixels_0 = 0
-        frame_pixels_1 = y_shape
+        frame_pixels_1 = net_input_shape[0]
+        raw_x_shape = net_input_shape[0]
+        raw_y_shape = net_input_shape[1]
     else:
         assert False, 'Dataset not recognized'
     
@@ -701,7 +706,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
-                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(x_shape, y_shape, -1)
+                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
                 insertion_index = -modalities
                 img_index = 0
                 for k in range(j-sideSlices, j+sideSlices+1):

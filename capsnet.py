@@ -122,12 +122,10 @@ def MultiCapsNetR3(input_shape, n_class=2):
 
 
 
-def CapsNetR3(input_shape, n_class=2):
+def CapsNetR3(input_shape, modalities=1, n_class=2):
     capsules_base = 2
     filter_multiplier = 1
     atoms_base = 16*filter_multiplier
-    
-    modalities = 4 # replace with argument later
     
     x = layers.Input(shape=input_shape)
 
@@ -196,11 +194,14 @@ def CapsNetR3(input_shape, n_class=2):
     up_3 = layers.Concatenate(axis=-2, name='up_3')([deconv_cap_3_1, conv1_reshaped])
 
     # Layer 4: Convolutional Capsule: 1x1
-    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=4, num_atoms=atoms_base, strides=1, padding='same',
+    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=1, num_atoms=atoms_base, strides=1, padding='same',
                                 routings=3, name='seg_caps')(up_3)
+    
+    seg_caps_classifier = ConvCapsuleLayer(kernel_size=1, num_capsule=n_class, num_atoms=atoms_base, strides=1, padding='same',
+                                routings=3, name='seg_caps_classifier')(seg_caps)
 
     # Layer 4: This is an auxiliary layer to replace each capsule with its length. Just to match the true label's shape.
-    out_seg = Length(num_classes=4, seg=True, name='out_seg')(seg_caps)
+    out_seg = Length(num_classes=n_class, seg=True, name='out_seg')(seg_caps_classifier)
     print(out_seg.shape)
     #assert False, "Out seg shape"
     #out_seg = seg_caps
@@ -211,17 +212,21 @@ def CapsNetR3(input_shape, n_class=2):
     y = layers.Input(shape=input_shape[:-1]+(1,), name='recon_input')
     
     masked_by_y = Mask()([seg_caps, y])  # The true label is used to mask the output of capsule layer. For training
+    print('masked by y ' + str(masked_by_y.shape))
+    print('Y ' + str(y.shape))
     masked = Mask()(seg_caps)  # Mask using the capsule with maximal length. For prediction
 
     def shared_decoder(mask_layer):
         #print(H.value, W.value, A.value*4)
         #mask_layer = mask_layer[:,:,3]
-        recon_remove_dim = layers.Reshape((H.value, W.value, modalities*A.value))(mask_layer)
+        print(mask_layer.shape)
+        print((H.value, W.value, modalities*A.value))
+        recon_remove_dim = layers.Reshape((H.value, W.value, A.value))(mask_layer)
 
-        recon_1 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
+        recon_1 = layers.Conv2D(filters=64, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_1')(recon_remove_dim)
 
-        recon_2 = layers.Conv2D(filters=256, kernel_size=1, padding='same', kernel_initializer='he_normal',
+        recon_2 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_2')(recon_1)
 
         out_recon = layers.Conv2D(filters=modalities, kernel_size=1, padding='same', kernel_initializer='he_normal',

@@ -44,10 +44,11 @@ def main(args):
     img_shape = sitk.GetArrayFromImage(sitk.ReadImage(join(args.data_root_dir, 'imgs', train_list[0][0]))).shape
     print(img_shape)
     
-    modalities = 1
+    args.modalities = 1
+    net_input_shape = (img_shape[1], img_shape[2], args.slices*args.modalities)
     if args.dataset == 'brats':
-        modalities = 4
-    net_input_shape = (img_shape[1], img_shape[2], args.slices*modalities)
+        args.modalities = 4
+        net_input_shape = (256, 256, args.slices*args.modalities)
 
     # Create the model for training/testing/manipulation
     model_list = create_model(args=args, input_shape=net_input_shape)
@@ -141,9 +142,6 @@ if __name__ == '__main__':
                         help='Number of slices to include for training/testing.')
     parser.add_argument('--dataset', type=str.lower, default='brats', choices=['brats', 'luna16', 'heart'],
                         help='Which dataset to use.')
-    parser.add_argument('--out_classes', type=int, default=4,
-                        help='Number of classes used by dataset.')
-    
     parser.add_argument('--subsamp', type=int, default=-1,
                         help='Number of slices to skip when forming 3D samples for training. Enter -1 for random '
                              'subsampling up to 5% of total slices.')

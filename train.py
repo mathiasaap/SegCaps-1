@@ -163,6 +163,7 @@ def plot_training(training_history, arguments):
 DEBUG = False
 def train(args, train_list, val_list, u_model, net_input_shape, num_output_classes=2):
     # Compile the loaded model
+    print(args.dataset)
     print(net_input_shape)
     model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
     if args.weights_path:
