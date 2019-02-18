@@ -17,7 +17,7 @@ def create_model(args, input_shape):
     if args.gpus <= 1:
         if args.net == 'unet':
             from unet import UNet
-            model = UNet(input_shape)
+            model = UNet(input_shape, num_classes)
             return [model]
         elif args.net == 'tiramisu':
             from densenets import DenseNetFCN

@@ -366,7 +366,7 @@ def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
 
             fig = plt.gcf()
             fig.suptitle(fname)
-            print("save qual fig")
+            #print("save qual fig")
             plt.savefig(join(fig_path, fname + '.png'), format='png', bbox_inches='tight')
             plt.close(fig)
         except Exception as e:
@@ -430,12 +430,12 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             try:
                 scan_name = scan_name[0]
                 path_to_np = join(root_path,'np_files',basename(scan_name)[:-6]+'npz')
-                print('\npath_to_np=%s'%(path_to_np))
+                #print('\npath_to_np=%s'%(path_to_np))
                 with np.load(path_to_np) as data:
                     train_img = data['img']
                     train_mask = data['mask']
             except:
-                print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
+                #print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
                 train_img, train_mask = np_converter(root_path, scan_name) 
                 if np.array_equal(train_img,np.zeros(1)):
                     continue
