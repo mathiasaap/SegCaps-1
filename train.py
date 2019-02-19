@@ -79,7 +79,7 @@ def get_callbacks(arguments):
 
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
-    opt = Adam(lr=args.initial_lr, beta_1=0.99, beta_2=0.999, decay=1e-6)
+    opt = Adam(lr=args.initial_lr, beta_1=0.9, beta_2=0.999, decay=0.0015)
     if args.net.find('caps') != -1:
         if "multi" in args.loss:
             metrics = {'out_seg': multiclass_dice_score}
