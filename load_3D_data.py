@@ -44,7 +44,6 @@ def load_data(root, split):
     with open(join(root, 'split_lists', 'test_split_' + str(split) + '.csv'), 'rb') as f:
         reader = csv.reader(f)
         testing_list = list(reader)
-    print(training_list)
 
     new_training_list, validation_list = train_test_split(training_list, test_size=0.1, random_state=7)
 
@@ -114,7 +113,7 @@ def split_data(root_path, num_splits=4):
         n += 1
 
 
-def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
+def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
     fname = img_name[:-4]
     numpy_path = join(root_path, 'np_files')
     img_path = join(root_path, 'imgs')
@@ -311,7 +310,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     train_mask = data['mask']
             except:
                 print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-4]))
-                train_img, train_mask = convert_data_to_numpy(root_path, scan_name)
+                train_img, train_mask = convert_brats_data_to_numpy(root_path, scan_name)
                 if np.array_equal(train_img,np.zeros(1)):
                     continue
                 else:

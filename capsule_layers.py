@@ -17,10 +17,7 @@ import numpy as np
 class Length(layers.Layer):
     def __init__(self, num_classes, seg=True, **kwargs):
         super(Length, self).__init__(**kwargs)
-        if num_classes == 2:
-            self.num_classes = 1
-        else:
-            self.num_classes = num_classes
+        self.num_classes = num_classes
         self.seg = seg
 
     def call(self, inputs, **kwargs):

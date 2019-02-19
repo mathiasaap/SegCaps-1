@@ -74,7 +74,7 @@ def test(args, test_list, model_list, net_input_shape):
     else:
         weights_path = join(args.data_root_dir, args.weights_path)
     
-    if args.dataset == 'brats:
+    if args.dataset == 'brats':
         RESOLUTION = 240
     else:
         RESOLUTION = 512
@@ -146,7 +146,7 @@ def test(args, test_list, model_list, net_input_shape):
                                                                               batchSize=args.batch_size,
                                                                               numSlices=args.slices,
                                                                               subSampAmt=0,
-                                                                              stride=1),
+                                                                              stride=1, dataset = args.dataset, num_output_classes=args.out_classes),
                                                         steps=num_slices, max_queue_size=1, workers=1,
                                                         use_multiprocessing=False, verbose=1)
 
