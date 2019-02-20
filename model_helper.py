@@ -39,6 +39,10 @@ def create_model(args, input_shape):
             from isensee import ResidualUnet2D
             model = ResidualUnet2D(input_shape, args.out_classes)
             return [model]
+        elif args.net == 'binarycaps':
+            from capsnet import BinaryCapsNetR3
+            model_list = BinaryCapsNetR3(input_shape, args.out_classes)
+            return model_list
         else:
             raise Exception('Unknown network type specified: {}'.format(args.net))
     # If using multiple GPUs

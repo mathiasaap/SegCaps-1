@@ -34,8 +34,9 @@ from load_brats_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
-    f, ax = plt.subplots(2, raw_data.shape[3], figsize=(15, 15))
-    print(raw_data)
+    f, ax = plt.subplots(2, raw_data.shape[3]+1, figsize=(15, 15))
+    
+    print(raw_data.shape)
     names = ['Class 1', 'Class 2', 'Class 3', 'Class 4']
     mi = np.min(raw_data[slice_num])
     ma = np.max(raw_data[slice_num])
@@ -192,13 +193,13 @@ def test(args, test_list, model_list, net_input_shape):
                     output = output_array[:,:,:,:]
             #print(output[50, : 200])
             #assert False
-            output_raw = output
-            output = oneHot2LabelMax(output)
+            output_raw = output.reshape(-1,320,320,1)
+            #output = oneHot2LabelMax(output)
                 
             #assert False
             label = output.astype(np.int64)
             #print(label[num_slices // 2, :, :])
-            outputOnehot = np.eye(args.out_classes)[label].astype(np.uint8) 
+            outputOnehot = label.reshape(-1,320,320,1) #np.eye(args.out_classes)[label].astype(np.uint8) 
                     
 
             output_img = sitk.GetImageFromArray(output)
@@ -230,7 +231,7 @@ def test(args, test_list, model_list, net_input_shape):
                 sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
                 gt_data = sitk.GetArrayFromImage(sitk_mask)
                 label = gt_data.astype(np.int64)
-                gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8) 
+                gtOnehot = label.reshape(-1,320,320,1) #np.eye(args.out_classes)[label].astype(np.uint8) 
                 create_activation_image(args, output_raw, gtOnehot, slice_num=output_raw.shape[0] // 2, index=i)
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')

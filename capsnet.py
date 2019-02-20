@@ -15,7 +15,7 @@ K.set_image_data_format('channels_last')
 from capsule_layers import ConvCapsuleLayer, DeconvCapsuleLayer, Mask, Length
 
 
-def MultiCapsNetR3(input_shape, n_class=2):
+def BinaryCapsNetR3(input_shape, n_class=2):    
     x = layers.Input(shape=input_shape)
 
     # Layer 1: Just a conventional Conv2D layer
@@ -93,6 +93,32 @@ def MultiCapsNetR3(input_shape, n_class=2):
     y = layers.Input(shape=input_shape[:-1]+(1,))
     masked_by_y = Mask()([seg_caps, y])  # The true label is used to mask the output of capsule layer. For training
     masked = Mask()(seg_caps)  # Mask using the capsule with maximal length. For prediction
+
+    def shared_decoder(mask_layer):
+        recon_remove_dim = layers.Reshape((H.value, W.value, A.value))(mask_layer)
+
+        recon_1 = layers.Conv2D(filters=64, kernel_size=1, padding='same', kernel_initializer='he_normal',
+                                activation='relu', name='recon_1')(recon_remove_dim)
+
+        recon_2 = layers.Conv2D(filters=128, kernel_size=1, padding='same', kernel_initializer='he_normal',
+                                activation='relu', name='recon_2')(recon_1)
+
+        out_recon = layers.Conv2D(filters=1, kernel_size=1, padding='same', kernel_initializer='he_normal',
+                                  activation='sigmoid', name='out_recon')(recon_2)
+
+        return out_recon
+
+    # Models for training and evaluation (prediction)
+    train_model = models.Model(inputs=[x, y], outputs=[out_seg, shared_decoder(masked_by_y)])
+    eval_model = models.Model(inputs=x, outputs=[out_seg, shared_decoder(masked)])
+
+    # manipulate model
+    noise = layers.Input(shape=((H.value, W.value, C.value, A.value)))
+    noised_seg_caps = layers.Add()([seg_caps, noise])
+    masked_noised_y = Mask()([noised_seg_caps, y])
+    manipulate_model = models.Model(inputs=[x, y, noise], outputs=shared_decoder(masked_noised_y))
+
+    return train_model, eval_model, manipulate_model
     
     def shared_decoder(mask_layer):
         recon_remove_dim = layers.Reshape((H.value, W.value, A.value))(mask_layer)

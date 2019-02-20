@@ -176,6 +176,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     mask_shape = [net_input_shape[0], net_input_shape[1], num_output_classes]
+    #print(mask_shape)
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
     
     if dataset == 'brats':
@@ -192,7 +193,10 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             np_converter = convert_spleen_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
-        empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        if num_output_classes == 2:
+            empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        else:
+            empty_mask = np.array([1-one_hot_max])
         raw_x_shape = net_input_shape[0]
         raw_y_shape = net_input_shape[1]
     else:
@@ -232,8 +236,8 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                if not np.any(train_mask[:, :, j, 1:]):
-                    continue
+                #if not np.any(train_mask[:, :, j, 1:]):
+                #    continue
                 if aug_data:
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
@@ -298,7 +302,6 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                         yield ([img_batch, mask_batch_masked], [mask_batch, mask_batch_masked_expand*img_batch_mid_slice])
                     else:
                         yield (img_batch, mask_batch)
-        print('mask batch ' + str(mask_batch.shape))
         if count != 0:
             if net.find('caps') != -1:
                 mid_slice = input_slices // 2
@@ -337,7 +340,10 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         np_converter = convert_heart_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
-        empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        if num_output_classes == 2:
+            empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        else:
+            empty_mask = np.array([1-one_hot_max])
         raw_x_shape = net_input_shape[0]
         raw_y_shape = net_input_shape[1]
     else:
@@ -376,8 +382,8 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 shuffle(indicies)
 
             for j in indicies:
-                if not np.any(val_mask[:, :,  j:j+numSlices]):
-                    continue
+                #if not np.any(val_mask[:, :,  j:j+numSlices]):
+                #    continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
                     next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)

@@ -160,7 +160,7 @@ def plot_training(training_history, arguments):
     f.savefig(join(arguments.output_dir, arguments.output_name + '_plots_' + arguments.time + '.png'))
     plt.close()
 
-DEBUG = False
+DEBUG = True
 def train(args, train_list, val_list, u_model, net_input_shape, num_output_classes=2):
     # Compile the loaded model
     print(args.dataset)
@@ -185,15 +185,16 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
         #import random
         for batch in batch_gen:
             imgs, masks = batch
-            single_img = imgs[0]
-            single_mask = masks[0]
-            print(imgs.shape)
+            single_img = imgs[0][0]
+            single_mask = masks[0][0]
+            #print(imgs.shape)
             #if random.randint(0,1) > 0.9:
             break
 
 
         f, ax = plt.subplots(1, 2, figsize=(15, 5))
 
+        print(single_img.shape)
         ax[0].imshow(single_img[:, :, 0], alpha=1, cmap='gray')
         #ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
         #ax[0].imshow(gt_data[num_slices // 3, :, :], alpha=0.2, cmap='Reds')

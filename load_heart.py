@@ -59,7 +59,8 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
             #mask[mask > 0.5] = 1 # Edema, Enhancing and Non enhancing tumor
             
             label = mask.astype(np.int64)
-            masks = np.eye(2)[label]
+            #print(label[150])
+            masks = label.reshape(320,320,-1,1) #np.eye(2)[label]
             print("Created mask shape: {}".format(masks.shape))
             #mask = masks.astype(np.float32)
             
@@ -74,19 +75,19 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
 
             ax[0].imshow(img[:, :, img.shape[2] // 3], cmap='gray')
             if not no_masks:
-                ax[0].imshow(mask[:, :, img.shape[2] // 3, 1], alpha=0.40, cmap='Reds')
+                ax[0].imshow(mask[:, :, img.shape[2] // 3, 0], alpha=0.40, cmap='Reds')
             ax[0].set_title('Slice {}/{}'.format(img.shape[2] // 3, img.shape[2]))
             ax[0].axis('off')
 
             ax[1].imshow(img[:, :, img.shape[2] // 2], cmap='gray')
             if not no_masks:
-                ax[1].imshow(mask[:, :, img.shape[2] // 2, 1], alpha=0.40, cmap='Reds')
+                ax[1].imshow(mask[:, :, img.shape[2] // 2, 0], alpha=0.40, cmap='Reds')
             ax[1].set_title('Slice {}/{}'.format(img.shape[2] // 2, img.shape[2]))
             ax[1].axis('off')
 
             ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4], cmap='gray')
             if not no_masks:
-                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 1], alpha=0.40, cmap='Reds')
+                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 0], alpha=0.40, cmap='Reds')
             ax[2].set_title('Slice {}/{}'.format(img.shape[2] // 2 + img.shape[2] // 4, img.shape[2]))
             ax[2].axis('off')
 

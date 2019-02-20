@@ -116,7 +116,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_splits', type=int, default=2,
                         help='Number of training splits to create.')
     parser.add_argument('--net', type=str.lower, default='segcapsr3',
-                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'unet', 'tiramisu', 'isensee'],
+                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'unet', 'tiramisu', 'isensee', 'binarycaps'],
                         help='Choose your network.')
     parser.add_argument('--train', type=int, default=1, choices=[0,1],
                         help='Set to 1 to enable training.')
