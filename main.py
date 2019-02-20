@@ -21,7 +21,7 @@ time = strftime("%Y-%m-%d-%H:%M:%S", gmtime())
 
 from keras.utils import print_summary
 
-from load_brats_data_multiclass import load_data, split_data
+from load_data_multiclass import load_data, split_data
 from model_helper import create_model
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session

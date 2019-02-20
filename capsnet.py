@@ -194,11 +194,16 @@ def CapsNetR3(input_shape, modalities=1, n_class=2):
     up_3 = layers.Concatenate(axis=-2, name='up_3')([deconv_cap_3_1, conv1_reshaped])
 
     # Layer 4: Convolutional Capsule: 1x1
-    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=1, num_atoms=atoms_base, strides=1, padding='same',
-                                routings=3, name='seg_caps')(up_3)
+    
     
     seg_caps_classifier = ConvCapsuleLayer(kernel_size=1, num_capsule=n_class, num_atoms=atoms_base, strides=1, padding='same',
-                                routings=3, name='seg_caps_classifier')(seg_caps)
+                                routings=3, name='seg_caps_classifier')(up_3)
+    
+    if n_class > 1:
+        seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=1, num_atoms=atoms_base, strides=1, 
+                                    padding='same', routings=3, name='seg_caps')(seg_caps_classifier)
+    else:
+        seg_caps = seg_caps_classifier
 
     # Layer 4: This is an auxiliary layer to replace each capsule with its length. Just to match the true label's shape.
     out_seg = Length(num_classes=n_class, seg=True, name='out_seg')(seg_caps_classifier)

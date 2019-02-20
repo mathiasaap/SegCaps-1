@@ -35,7 +35,7 @@ from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
     f, ax = plt.subplots(2, raw_data.shape[3], figsize=(15, 15))
-
+    print(raw_data)
     names = ['Class 1', 'Class 2', 'Class 3', 'Class 4']
     mi = np.min(raw_data[slice_num])
     ma = np.max(raw_data[slice_num])
@@ -55,6 +55,30 @@ def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
     fig.suptitle("Activation maps for img {}".format(index))
 
     plt.savefig(join(args.data_root_dir, 'results', 'activations', 'img_{}'.format(index) + '.png'),
+                format='png', bbox_inches='tight')
+    plt.close('all') 
+
+def create_recon_image(args, recon, img, i=0):
+    cols = recon.shape[3]
+    if cols == 1:
+        cols = 2
+    f, ax = plt.subplots(2, cols, figsize=(15, 15))
+
+    slice_num = recon.shape[0] // 2
+    for j in range(recon.shape[3]):
+        recon_mod = recon[slice_num, :, :, j]
+        ax[0,j].imshow(recon_mod, alpha=1, cmap='Reds')
+        ax[0,j].axis('off')
+   
+    print('recon shape' + str(img.shape))
+    for j in range(recon.shape[3]):
+        ax[1,j].imshow(img[slice_num, :, :], alpha=1, cmap='Reds')
+        ax[1,j].axis('off')
+
+    fig = plt.gcf()
+    fig.suptitle("Recon maps for img {}".format(i))
+
+    plt.savefig(join(args.data_root_dir, 'results', 'activations', 'recon_{}'.format(i) + '.png'),
                 format='png', bbox_inches='tight')
     plt.close('all') 
 
@@ -103,7 +127,8 @@ def test(args, test_list, model_list, net_input_shape):
         eval_model = model_list[0]
     try:
         eval_model.load_weights(weights_path)
-    except:
+    except Exception as e:
+        print(e)
         assert False, 'Unable to find weights path. Testing with random weights.'
     print_summary(model=eval_model, positions=[.38, .65, .75, 1.])
 
@@ -139,6 +164,7 @@ def test(args, test_list, model_list, net_input_shape):
             sitk_img = sitk.ReadImage(join(args.data_root_dir, 'imgs', img[0]))
             img_data = sitk.GetArrayFromImage(sitk_img)
             num_slices = img_data.shape[0]
+            
             if args.dataset == 'brats':
                 num_slices = img_data.shape[1]#brats
 
@@ -151,20 +177,21 @@ def test(args, test_list, model_list, net_input_shape):
                                                         steps=num_slices, max_queue_size=1, workers=1,
                                                         use_multiprocessing=False, verbose=1)
             
-            print(output_array[0].shape)
+            print('out' + str(output_array[0].shape))
             if args.net.find('caps') != -1:
                 if args.dataset == 'brats':
                     output = output_array[0][:,8:-8,8:-8]
+                    recon = output_array[1][:,8:-8,8:-8]
                 else:
                     output = output_array[0][:,:,:]
-                print(output)
-                #recon = output_array[1][:,:,:,0]
+                    recon = output_array[1][:,:,:]
             else:
                 if args.dataset == 'brats':
                     output = output_array[:,8:-8,8:-8,:]
                 else:
                     output = output_array[:,:,:,:]
-                
+            #print(output[50, : 200])
+            #assert False
             output_raw = output
             output = oneHot2LabelMax(output)
                 
@@ -175,7 +202,9 @@ def test(args, test_list, model_list, net_input_shape):
                     
 
             output_img = sitk.GetImageFromArray(output)
+
             print('Segmenting Output')
+            
             output_bin = threshold_mask(output, args.thresh_level)
             
             output_mask = sitk.GetImageFromArray(output_bin)
@@ -184,6 +213,10 @@ def test(args, test_list, model_list, net_input_shape):
 
             output_img.CopyInformation(slice_img)
             output_mask.CopyInformation(slice_img)
+            
+            if args.net.find('caps') != -1:
+                create_recon_image(args, recon, img_data, i=i)
+                
                 
             #output_img.CopyInformation(sitk_img)
             #output_mask.CopyInformation(sitk_img)
@@ -209,7 +242,8 @@ def test(args, test_list, model_list, net_input_shape):
                 print(img_data.shape)
                 print(outputOnehot.shape)
                 if args.dataset == 'brats':
-                    img_data = img_data[3]
+                    img_data = img_data[:,:,:,3]
+                    
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
 
                 for class_num in range(outputOnehot.shape[3]):
