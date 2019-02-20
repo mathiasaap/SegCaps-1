@@ -30,7 +30,7 @@ K.set_image_data_format('channels_last')
 from keras.utils import print_summary
 
 
-from load_brats_data_multiclass import generate_test_batches
+from load_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):

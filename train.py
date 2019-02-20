@@ -22,7 +22,7 @@ from keras.optimizers import Adam
 from keras import backend as K
 K.set_image_data_format('channels_last')
 from keras.utils.training_utils import multi_gpu_model
-from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard
+from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard, LearningRateScheduler
 import tensorflow as tf
 
 from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score
@@ -54,6 +54,11 @@ def get_loss(root, split, net, recon_wei, choice):
     else:
         return loss, None
 
+def schedule_lr(epoch, lr):
+    if epoch < 1:
+        return lr
+    return lr*0.85
+    
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
         if "multi" in arguments.loss:
@@ -73,13 +78,14 @@ def get_callbacks(arguments):
                                        monitor=monitor_name, save_best_only=True, save_weights_only=False,
                                        verbose=1, mode='max')
     lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.25, cooldown=0, patience=5,verbose=1, mode='max')
+    lr_scheduler = LearningRateScheduler(schedule_lr, verbose=1)
     early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=25, verbose=0, mode='max')
 
-    return [model_checkpoint, csv_logger, lr_reducer, early_stopper, tb]
+    return [model_checkpoint, csv_logger, lr_reducer, early_stopper, tb, lr_scheduler]
 
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
-    opt = Adam(lr=args.initial_lr, beta_1=0.9, beta_2=0.999, decay=0.0015)
+    opt = Adam(lr=args.initial_lr, beta_1=0.9, beta_2=0.999, decay=10**-6)
     if args.net.find('caps') != -1:
         if "multi" in args.loss:
             metrics = {'out_seg': multiclass_dice_score}
