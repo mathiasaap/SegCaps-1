@@ -70,7 +70,7 @@ def get_callbacks(arguments):
     csv_logger = CSVLogger(join(arguments.log_dir, arguments.output_name + '_log_' + arguments.time + '.csv'), separator=',')
     tb = TensorBoard(arguments.tf_log_dir, batch_size=arguments.batch_size, histogram_freq=0)
     model_checkpoint = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_model_' + arguments.time + '.hdf5'),
-                                       monitor=monitor_name, save_best_only=True, save_weights_only=False,
+                                       monitor=monitor_name, save_best_only=False, save_weights_only=False,
                                        verbose=1, mode='max')
     lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.25, cooldown=0, patience=5,verbose=1, mode='max')
     early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=25, verbose=0, mode='max')
@@ -160,7 +160,7 @@ def plot_training(training_history, arguments):
     f.savefig(join(arguments.output_dir, arguments.output_name + '_plots_' + arguments.time + '.png'))
     plt.close()
 
-DEBUG = True
+DEBUG = False
 def train(args, train_list, val_list, u_model, net_input_shape, num_output_classes=2):
     # Compile the loaded model
     print(args.dataset)
