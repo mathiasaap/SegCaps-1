@@ -21,10 +21,10 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
     except:
         pass
 
-    heart_min = -0.660214483738
+    heart_min = 0
     heart_max = 2196.0
-    mean = np.array([170.25972919418757])
-    std = np.array([257.885508476468])
+    mean = 0 #np.array([170.25972919418757])
+    std = 1 #np.array([257.885508476468])
 
     if not overwrite:
         try:
@@ -60,7 +60,7 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
             
             label = mask.astype(np.int64)
             #print(label[150])
-            masks = label.reshape(320,320,-1,1) #np.eye(2)[label]
+            masks = np.eye(2)[label] #label.reshape(320,320,-1,1)
             print("Created mask shape: {}".format(masks.shape))
             #mask = masks.astype(np.float32)
             

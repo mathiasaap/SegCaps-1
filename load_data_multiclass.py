@@ -206,6 +206,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
         if shuff:
             shuffle(train_list)
         count = 0
+        is_binary_classification = num_output_classes == 1
         for i, scan_name in enumerate(train_list):
             try:
                 scan_name = scan_name[0]
@@ -236,8 +237,10 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                #if not np.any(train_mask[:, :, j, 1:]):
-                #    continue
+                
+                if (is_binary_classification and np.sum(train_mask[:, :, j]) < 1) or (not is_binary_classification and np.sum(train_mask[:, :, j, 1:]) < 1):
+                    #print('hola')
+                    continue
                 if aug_data:
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
@@ -289,6 +292,9 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                         plt.close()'''
                     if net.find('caps') != -1: # if the network is capsule/segcaps structure
                         masked_img = mask_batch*img_batch
+                        plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', 'ex{}_img.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()
                         plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), cmap='gray')
                         plt.savefig(join(root_path, 'logs', 'ex{}_mask1.png'.format(j)), format='png', bbox_inches='tight')
                         plt.close()

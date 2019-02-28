@@ -98,7 +98,8 @@ def ResidualUnet2D(input_shape, out_classes):
     def createSigmoid(out):
         return sigmoid(out)
     
-    if out_classes == 1:
+    #ONLY IF DICE
+    if out_classes == 1: 
         out = Lambda(createSigmoid)(out) # Does this work?
 
     model = Model(inputs=[x], outputs=[out])

@@ -21,10 +21,10 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
     except:
         pass
 
-    spleen_min = -1024.0
-    spleen_max = 3072.0
-    mean = np.array([-541.1801174550513])
-    std = np.array([492.2428379436813])
+    ct_min = -1024
+    ct_max = 3072
+    #mean = np.array([-541.1801174550513])
+    #std = np.array([492.2428379436813])
 
     if not overwrite:
         try:
@@ -41,11 +41,10 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
         img = img.astype(np.float32)
         img = np.rollaxis(img, 0, 3) 
         
-        img -= mean
-        img /= std
-        
-        img = np.clip(img, + spleen_min, spleen_max)
-        img = (img - spleen_min) / (spleen_max - spleen_min)
+        img[img > ct_max] = ct_max
+        img[img < ct_min] = ct_min
+        img += -ct_min
+        img /= (ct_max + -ct_min)
         
         #img = img[:, :, :, 3] # Select only t1w during initial testing
         #img = (img-img.mean())/img.std()
