@@ -23,6 +23,7 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
 
     ct_min = -1024
     ct_max = 3072
+    
     #mean = np.array([-541.1801174550513])
     #std = np.array([492.2428379436813])
 

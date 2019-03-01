@@ -172,6 +172,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                            stride=1, downSampAmt=1, shuff=1, aug_data=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
+    print(dataset)
     modalities = net_input_shape[2] // numSlices
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
@@ -333,7 +334,10 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         raw_x_shape = 240
         raw_y_shape = 240
     elif dataset in ['heart', 'spleen']:
-        np_converter = convert_heart_data_to_numpy
+        if dataset == 'heart':
+            np_converter = convert_heart_data_to_numpy
+        else:
+            np_converter = convert_spleen_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
         if num_output_classes == 2:
@@ -420,6 +424,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
 def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, numSlices=1, subSampAmt=0,
                           stride=1, downSampAmt=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for testing
+    print('Generate test batches for ' + str(dataset))
     print('\nload_3D_data.generate_test_batches')
     print("Batch size {}".format(batchSize))
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
@@ -434,7 +439,10 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         raw_x_shape = 240
         raw_y_shape = 240
     elif dataset in ['heart', 'spleen']:
-        np_converter = convert_heart_data_to_numpy
+        if dataset == 'heart':
+            np_converter = convert_heart_data_to_numpy
+        else:
+            np_converter = convert_spleen_data_to_numpy
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
         raw_x_shape = net_input_shape[0]

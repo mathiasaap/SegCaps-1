@@ -30,7 +30,7 @@ K.set_image_data_format('channels_last')
 from keras.utils import print_summary
 
 
-from load_brats_data_multiclass import generate_test_batches
+from load_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
@@ -168,7 +168,9 @@ def test(args, test_list, model_list, net_input_shape):
             
             if args.dataset == 'brats':
                 num_slices = img_data.shape[1]#brats
-
+            
+            print(args.dataset)
+            
             output_array = eval_model.predict_generator(generate_test_batches(args.data_root_dir, [img],
                                                                               net_input_shape,
                                                                               batchSize=1,
