@@ -195,14 +195,14 @@ def test(args, test_list, model_list, net_input_shape):
                     output = output_array[:,:,:,:]
             #print(output[50, : 200])
             #assert False
-            #output_raw = output.reshape(-1,320,320,1) #binary
+            #output_raw = output.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
             output_raw = output
             output = oneHot2LabelMax(output)
                 
             #assert False
             label = output.astype(np.int64)
             #print(label[num_slices // 2, :, :])
-            outputOnehot = np.eye(args.out_classes)[label].astype(np.uint8) #label.reshape(-1,320,320,1) #binary
+            outputOnehot = np.eye(args.out_classes)[label].astype(np.uint8) #label.reshape(-1,RESOLUTION,RESOLUTION,1) #binary np.eye(args.out_classes)[label].astype(np.uint8)
                     
 
             output_img = sitk.GetImageFromArray(output)
@@ -234,7 +234,7 @@ def test(args, test_list, model_list, net_input_shape):
                 sitk_mask = sitk.ReadImage(join(args.data_root_dir, 'masks', img[0]))
                 gt_data = sitk.GetArrayFromImage(sitk_mask)
                 label = gt_data.astype(np.int64)
-                gtOnehot =  np.eye(args.out_classes)[label].astype(np.uint8) #label.reshape(-1,320,320,1)
+                gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8) # label.reshape(-1,RESOLUTION,RESOLUTION,1) #
                 create_activation_image(args, output_raw, gtOnehot, slice_num=output_raw.shape[0] // 2, index=i)
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')
@@ -246,7 +246,8 @@ def test(args, test_list, model_list, net_input_shape):
                 print(img_data.shape)
                 print(outputOnehot.shape)
                 if args.dataset == 'brats':
-                    img_data = img_data[:,:,:,3]
+                    img_data = img_data[3]
+                    #img_data = img_data[:,:,:,3]
                     
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
 

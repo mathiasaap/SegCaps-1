@@ -1,11 +1,3 @@
-'''
-Capsules for Object Segmentation (SegCaps)
-Original Paper: https://arxiv.org/abs/1804.04241
-Code written by: Rodney LaLonde
-If you use significant portions of this code or the ideas from our paper, please cite it :)
-If you have any questions, please email me at lalonde@knights.ucf.edu.
-This file contains the definitions of the various capsule layers and dynamic routing and squashing functions.
-'''
 
 import keras.backend as K
 import tensorflow as tf
@@ -16,17 +8,16 @@ import numpy as np
 class Length(layers.Layer):
     def __init__(self, num_classes, seg=True, **kwargs):
         super(Length, self).__init__(**kwargs)
-        if num_classes == 2:
-            self.num_classes = 1
-        else:
-            self.num_classes = num_classes
+        self.num_classes = num_classes
         self.seg = seg
 
     def call(self, inputs, **kwargs):
         if inputs.get_shape().ndims == 5:
-            assert inputs.get_shape()[-2].value == 1, 'Error: Must have num_capsules = 1 going into Length'
-            inputs = K.squeeze(inputs, axis=-2)
-        return K.expand_dims(tf.norm(inputs, axis=-1), axis=-1)
+            #assert inputs.get_shape()[-2].value == 1, 'Error: Must have num_capsules = 1 going into Length'
+            pass
+        norm = tf.norm(inputs, axis=-1)
+        out = K.expand_dims(norm, axis=-1)
+        return norm
 
     def compute_output_shape(self, input_shape):
         if len(input_shape) == 5:
@@ -51,6 +42,7 @@ class Mask(layers.Layer):
         if type(inputs) is list:
             assert len(inputs) == 2
             input, mask = inputs
+            
             _, hei, wid, _, _ = input.get_shape()
             if self.resize_masks:
                 mask = tf.image.resize_bicubic(mask, (hei.value, wid.value))
@@ -59,7 +51,7 @@ class Mask(layers.Layer):
                 masked = K.batch_flatten(mask * input)
             else:
                 masked = mask * input
-
+                
         else:
             if inputs.get_shape().ndims == 3:
                 x = K.sqrt(K.sum(K.square(inputs), -1))
@@ -73,8 +65,10 @@ class Mask(layers.Layer):
     def compute_output_shape(self, input_shape):
         if type(input_shape[0]) is tuple:  # true label provided
             if len(input_shape[0]) == 3:
+                
                 return tuple([None, input_shape[0][1] * input_shape[0][2]])
             else:
+
                 return input_shape[0]
         else:  # no true label provided
             if len(input_shape) == 3:

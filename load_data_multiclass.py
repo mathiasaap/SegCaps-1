@@ -292,17 +292,30 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                         plt.savefig(join(root_path, 'logs', 'ex_train.png'), format='png', bbox_inches='tight')
                         plt.close()'''
                     if net.find('caps') != -1: # if the network is capsule/segcaps structure
-                        masked_img = mask_batch*img_batch
-                        plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
-                        plt.savefig(join(root_path, 'logs', 'ex{}_img.png'.format(j)), format='png', bbox_inches='tight')
+                        mid_slice = input_slices // 2
+                        start_index = mid_slice * modalities
+                        img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                       
+                        mask_batch_masked = oneHot2LabelMax(mask_batch)
+                        mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                        mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                        mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                        masked_img = mask_batch_masked_expand*img_batch_mid_slice
+                        
+                        '''plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', '{}_img.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()
+                        plt.imshow(np.squeeze(mask_batch_masked[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', '{}_mask_masked.png'.format(j)), format='png', bbox_inches='tight')
                         plt.close()
                         plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), cmap='gray')
-                        plt.savefig(join(root_path, 'logs', 'ex{}_mask1.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.savefig(join(root_path, 'logs', '{}_mask.png'.format(j)), format='png', bbox_inches='tight')
                         plt.close()
                         plt.imshow(np.squeeze(masked_img[0, :, :, 0]), cmap='gray')
-                        plt.savefig(join(root_path, 'logs', 'ex{}_masked_img.png'.format(j)), format='png', bbox_inches='tight')
-                        plt.close()
-                        yield ([img_batch, mask_batch], [mask_batch, masked_img])
+                        plt.savefig(join(root_path, 'logs', '{}_masked_img.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()'''
+                        yield ([img_batch, mask_batch_masked], [mask_batch, masked_img])
                     else:
                         yield (img_batch, mask_batch)
         if count != 0:
@@ -310,8 +323,16 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
             #                                                                  mask_batch[:count,...])
             if net.find('caps') != -1:
-                yield ([img_batch[:count, ...], mask_batch[:count, ...]],
-                       [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
+                mid_slice = input_slices // 2
+                start_index = mid_slice * modalities
+                img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+
+                mask_batch_masked = oneHot2LabelMax(mask_batch)
+                mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+                yield ([img_batch[:count, ...], 1 - mask_batch_masked[:count, ...]],
+                       [mask_batch[:count, ...], mask_batch_masked_expand[:count, ...] * img_batch_mid_slice[:count, ...]])
             else:
                 yield (img_batch[:count,...], mask_batch[:count,...])
 
@@ -406,7 +427,17 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 if count % batchSize == 0:
                     count = 0
                     if net.find('caps') != -1: # if the network is capsule/segcaps structure
-                        yield ([img_batch, mask_batch], [mask_batch, mask_batch*img_batch])
+                        mid_slice = input_slices // 2
+                        start_index = mid_slice * modalities
+                        img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                       
+                        mask_batch_masked = oneHot2LabelMax(mask_batch)
+                        mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                        mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                        mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                        masked_img = mask_batch_masked_expand*img_batch_mid_slice
+                        yield ([img_batch, 1 - mask_batch_masked], [mask_batch, masked_img])
                     else:
                         yield (img_batch, mask_batch)
 
