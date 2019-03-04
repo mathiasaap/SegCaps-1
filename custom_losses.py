@@ -14,7 +14,10 @@ import tensorflow as tf
 def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
     if from_logits:
         out = tf.nn.softmax(out, axis=3)
-    
+    else:
+        # Segcaps uses maximum margin dice
+        out = tf.math.minimum(y * out, 1) + ((1-y) * out)
+
     eps = 1e-5
     
     y = y[..., 1:]
@@ -22,10 +25,10 @@ def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
     intersection = tf.reduce_sum(out * y, axis=axis)
     union = eps + tf.reduce_sum(out*out, axis=axis) + tf.reduce_sum(y*y, axis=axis)
     entropy = ( ( (2 * intersection) + eps) / (union))
-    return tf.reduce_mean(entropy) # return -tf.reduce_mean(entropy) works without softmax and oneHot2LabelMin
+    return tf.reduce_mean(entropy)
 
 def multiclass_dice_loss(out, y, from_logits=False):
-    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = True) #  1-multiclass_dice(out, y, axis=(1,2,3))# return -multiclass_dice works without softmax and oneHot2LabelMin
+    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = True)
 
 def multiclass_dice_score(out, y, from_logits=False):
     return multiclass_dice(out, y, axis=(1,2,3), from_logits = True)
@@ -67,6 +70,9 @@ def dice_soft(y_true, y_pred, loss_type='sorensen', axis=[1,2,3], smooth=1e-5, f
         _epsilon = tf.convert_to_tensor(1e-7, y_pred.dtype.base_dtype)
         y_pred = tf.clip_by_value(y_pred, _epsilon, 1 - _epsilon)
         y_pred = tf.log(y_pred / (1 - y_pred))
+    else:
+        # Segcaps uses maximum margin dice
+        y_pred = tf.math.minimum(y_true * y_pred, 1) + ((1-y_true) * y_pred)
 
     inse = tf.reduce_sum(y_pred * y_true, axis=axis)
     if loss_type == 'jaccard':
@@ -186,4 +192,3 @@ def margin_loss(margin=0.4, downweight=0.5, pos_weight=1.0):
         return 0.5 * positive_cost + downweight * 0.5 * negative_cost
 
     return _margin_loss
-
