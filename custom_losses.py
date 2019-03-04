@@ -20,8 +20,10 @@ def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
 
     eps = 1e-5
     
-    y = y[..., 1:]
-    out = out[..., 1:]
+    start_channel = 0 # Should include background when calculating dice?
+    
+    y = y[..., start_channel:]
+    out = out[..., start_channel:]
     intersection = tf.reduce_sum(out * y, axis=axis)
     union = eps + tf.reduce_sum(out*out, axis=axis) + tf.reduce_sum(y*y, axis=axis)
     entropy = ( ( (2 * intersection) + eps) / (union))
