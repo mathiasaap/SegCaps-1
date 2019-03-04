@@ -210,7 +210,7 @@ if __name__ == '__main__':
                                                        'data parallelism, modifications must be made to the code.'
     config = tf.ConfigProto()
     config.gpu_options.per_process_gpu_memory_fraction = 1.0
-    config.gpu_options.allow_growth=True
+    config.gpu_options.allow_growth=False
     set_session(tf.Session(config=config))
 
     main(arguments)
