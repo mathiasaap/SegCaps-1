@@ -64,8 +64,10 @@ def manip(args, test_list, model_list, net_input_shape):
     manip_model = model_list[2]
     try:
         manip_model.load_weights(weights_path)
-    except:
-        print('Unable to find weights path. Testing with random weights.')
+    except Exception as e:
+        print(e)
+        print('Unable to find weights path. NOT testing with random weights.')
+        assert False
     print_summary(model=manip_model, positions=[.38, .65, .75, 1.])
 
 

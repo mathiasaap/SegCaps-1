@@ -24,6 +24,15 @@ import SimpleITK as sitk
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import random
+import time
+from load_heart import convert_heart_data_to_numpy
+from load_spleen import convert_spleen_data_to_numpy
+from load_brats import convert_brats_data_to_numpy
+from postprocess import oneHot2LabelMax
+from augmentation import augment_random, elasticDeform2D, elasticDeform3D
+
+from scipy import linalg
+
 
 import matplotlib
 matplotlib.use('Agg')
@@ -34,7 +43,7 @@ from keras.preprocessing.image import *
 
 from custom_data_aug import elastic_transform, salt_pepper_noise
 
-debug = 1
+debug = 0
 
 def load_data(root, split):
     # Load the training and testing lists
@@ -128,33 +137,6 @@ def split_data(root_path, num_splits):
                     writer.writerow([basename(mask_list[i])])
             n += 1
             
-            
-
-
-def augment_random(image, label):
-    rot = [random.randint(0, 3) for i in range(3)]
-    flip = [random.randint(0, 1) for i in range(3)]
-    '''if rot[0]:
-        image = np.rot90(image, rot[0], axes=(1, 2))
-        label = np.rot90(label, rot[0], axes=(1, 2))
-    if rot[1]:
-        image = np.rot90(image, rot[1], axes=(0, 2))
-        label = np.rot90(label, rot[1], axes=(0, 2))'''
-    if rot[2]:
-        image = np.rot90(image, rot[2], axes=(0, 1))
-        label = np.rot90(label, rot[2], axes=(0, 1))
-
-    if flip[0]:
-        image = image[::-1]
-        label = label[::-1]
-    if flip[1]:
-        image = image[:, ::-1]
-        label = label[:, ::-1]
-    if flip[2]:
-        image = image[:, :, ::-1]
-        label = label[:, :, ::-1]
-        
-    return image, label
 
 
 ''' Make the generators threadsafe in case of multiple threads '''
@@ -181,156 +163,62 @@ def threadsafe_generator(f):
         return threadsafe_iter(f(*a, **kw))
     return g
 
-mean = np.array([18.426106306720985, 24.430354760142666, 24.29803657467962, 19.420110564555472])
-std = np.array([104.02684046042094, 136.06477850668273, 137.4833895418739, 109.29833288911334])
 one_hot_max = 1.0 # Value of positive class in one hot
-
-
-def convert_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
-    fname = img_name[:-7]
-    numpy_path = join(root_path, 'np_files')
-    img_path = join(root_path, 'imgs')
-    mask_path = join(root_path, 'masks')
-    fig_path = join(root_path, 'figs')
-    try:
-        makedirs(numpy_path)
-    except:
-        pass
-    try:
-        makedirs(fig_path)
-    except:
-        pass
-    # The min and max pixel values in a ct image file
-    brats_min = -0.18
-    brats_max = 10
-
-    if not overwrite:
-        try:
-            with np.load(join(numpy_path, fname + '.npz')) as data:
-                return data['img'], data['mask']
-        except:
-            pass
-
-    try:
-        itk_img = sitk.ReadImage(join(img_path, img_name))
-
-        img = sitk.GetArrayFromImage(itk_img)
-
-        img = img.astype(np.float32)
-
-        img = np.rollaxis(img, 0, 4)
-        img = np.rollaxis(img, 0, 3) 
-        
-      
-        img -= mean
-        img /= std
-        
-        img = np.clip(img, + brats_min, brats_max)
-        img = (img - brats_min) / (brats_max - brats_min)
-        
-        #img = img[:, :, :, 3] # Select only t1w during initial testing
-        #img = (img-img.mean())/img.std()
-        
-        
-        if not no_masks:
-            itk_mask = sitk.ReadImage(join(mask_path, img_name))
-            mask = sitk.GetArrayFromImage(itk_mask)
-            mask = np.rollaxis(mask, 0, 3)
-            #mask[mask < 0.5] = 0 # Background
-            #mask[mask > 0.5] = 1 # Edema, Enhancing and Non enhancing tumor
-            
-            label = mask.astype(np.int64)
-            masks = np.eye(4)[label]
-            print("Created mask shape: {}".format(masks.shape))
-            #mask = masks.astype(np.float32)
-            
-            masks[masks>0.5] = one_hot_max
-            masks[masks<0.5] = 1-one_hot_max
-            mask = masks
-            #mask = masks.astype(np.uint8)
-            
-
-        try:
-            show_modal = 3
-            f, ax = plt.subplots(1, 3, figsize=(15, 5))
-
-            ax[0].imshow(img[:, :, img.shape[2] // 3, show_modal], cmap='gray')
-            if not no_masks:
-                ax[0].imshow(mask[:, :, img.shape[2] // 3], alpha=0.40, cmap='Reds')
-            ax[0].set_title('Slice {}/{}'.format(img.shape[2] // 3, img.shape[2]))
-            ax[0].axis('off')
-
-            ax[1].imshow(img[:, :, img.shape[2] // 2, show_modal], cmap='gray')
-            if not no_masks:
-                ax[1].imshow(mask[:, :, img.shape[2] // 2], alpha=0.40, cmap='Reds')
-            ax[1].set_title('Slice {}/{}'.format(img.shape[2] // 2, img.shape[2]))
-            ax[1].axis('off')
-
-            ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4, show_modal], cmap='gray')
-            if not no_masks:
-                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4], alpha=0.40, cmap='Reds')
-            ax[2].set_title('Slice {}/{}'.format(img.shape[2] // 2 + img.shape[2] // 4, img.shape[2]))
-            ax[2].axis('off')
-
-            fig = plt.gcf()
-            fig.suptitle(fname)
-            print("save qual fig")
-            plt.savefig(join(fig_path, fname + '.png'), format='png', bbox_inches='tight')
-            plt.close(fig)
-        except Exception as e:
-            print('\n'+'-'*100)
-            print('Error creating qualitative figure for {}'.format(fname))
-            print(e)
-            print('-'*100+'\n')
-
-        if not no_masks:
-            np.savez_compressed(join(numpy_path, fname + '.npz'), img=img, mask=mask)
-        else:
-            np.savez_compressed(join(numpy_path, fname + '.npz'), img=img)
-
-        if not no_masks:
-            return img, mask
-        else:
-            return img
-
-    except Exception as e:
-        print('\n'+'-'*100)
-        print('Unable to load img or masks for {}'.format(fname))
-        print(e)
-        print('Skipping file')
-        print('-'*100+'\n')
-
-        return np.zeros(1), np.zeros(1)
 
 
 @threadsafe_generator
 @threadsafe_generator
 def generate_train_batches(root_path, train_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
-                           stride=1, downSampAmt=1, shuff=1, aug_data=1):
+                           stride=1, downSampAmt=1, shuff=1, aug_data=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
-    print(net_input_shape)
+    print('train ' + str(dataset))
     modalities = net_input_shape[2] // numSlices
+    input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    print("img_batch " + str(img_batch.shape))
-    mask_shape = [net_input_shape[0],net_input_shape[1], 4]
+    mask_shape = [net_input_shape[0], net_input_shape[1], num_output_classes]
+    #print(mask_shape)
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
-    mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
+    
+    if dataset == 'brats':
+        np_converter = convert_brats_data_to_numpy
+        frame_pixels_0 = 8
+        frame_pixels_1 = -8
+        empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+        raw_x_shape = 240
+        raw_y_shape = 240
+    elif dataset in ['heart', 'spleen']:
+        if dataset == 'heart':
+            np_converter = convert_heart_data_to_numpy
+        else:
+            np_converter = convert_spleen_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = net_input_shape[0]
+        if num_output_classes == 2:
+            empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        else:
+            empty_mask = np.array([1-one_hot_max])
+        raw_x_shape = net_input_shape[0]
+        raw_y_shape = net_input_shape[1]
+    else:
+        assert False, 'Dataset not recognized'
+
     while True:
         if shuff:
             shuffle(train_list)
         count = 0
+        is_binary_classification = num_output_classes == 1
         for i, scan_name in enumerate(train_list):
             try:
                 scan_name = scan_name[0]
                 path_to_np = join(root_path,'np_files',basename(scan_name)[:-6]+'npz')
-                print('\npath_to_np=%s'%(path_to_np))
+                #print('\npath_to_np=%s'%(path_to_np))
                 with np.load(path_to_np) as data:
                     train_img = data['img']
                     train_mask = data['mask']
             except:
-                print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-                train_img, train_mask = convert_data_to_numpy(root_path, scan_name)
+                #print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
+                train_img, train_mask = np_converter(root_path, scan_name) 
                 if np.array_equal(train_img,np.zeros(1)):
                     continue
                 else:
@@ -344,85 +232,144 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     numSlices -= 1
                 sideSlices = numSlices / 2
 
-            indicies = np.arange(0, train_img.shape[2], stride)
             z_shape = train_img.shape[2]
+            indicies = np.arange(0, z_shape, stride)
             
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                if not np.any(train_mask[:, :, j : j+numSlices]):
+                
+                if (is_binary_classification and np.sum(train_mask[:, :, j]) < 1) or (not is_binary_classification and np.sum(train_mask[:, :, j, 1:]) < 1):
+                    #print('hola')
                     continue
                 if aug_data:
                     train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
-                    index = -modalities
-                    for k in range(j-sideSlices, j+sideSlices):
-                        index += modalities
+                    next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
+                    insertion_index = -modalities
+                    img_index = 0
+                    for k in range(j-sideSlices, j+sideSlices+1):
+                        insertion_index += modalities
                         if (k < 0): continue
                         if (k >= z_shape): break
-                        img_batch[count, 8:-8, 8:-8, index:index+modalities] = next_img[:, :, index:index+modalities]
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    mask_batch[count, 8:-8, 8:-8, :] = train_mask[:, :, j]
-
-                elif img_batch.ndim == 5:
-                    # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                    img_batch[count] = 0
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    img_batch[count, 8:-8, 8:-8, :, :] = train_img[:, :, j-sideSlices : j+sideSlices+1]
-                    mask_batch[count, 8:-8, 8:-8, :, :] = train_mask[:, :, j]
+                        img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                        img_index += modalities
+                    mask_batch[count] = empty_mask
+                    mask_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :] = train_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
+                    
+                if aug_data:
+                    img_batch[count], mask_batch[count] = elasticDeform2D(img_batch[count], mask_batch[count], alpha=720, sigma=24, mode='reflect', is_random=True)
                 count += 1
                 if count % batchSize == 0:
                     count = 0
                     if debug:
-                        if img_batch.ndim == 4 and j < 2 or j > 150:
+                        if img_batch.ndim == 4:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice1_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice1.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
-                            plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice2_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            '''plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice2.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 8]), cmap='gray')
-                            #plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice3_main_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice3_main.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()
+                            plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_label.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 12]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice4_{}.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice4.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 16]), cmap='gray')
-                            plt.savefig(join(root_path, 'logs', 'ex_train_slice5_{}.png'.format(j)), format='png', bbox_inches='tight')
-                            plt.close()
+                            plt.savefig(join(root_path, 'logs', 'ex{}_train_slice5.png'.format(j)), format='png', bbox_inches='tight')
+                            plt.close()'''
                         '''elif img_batch.ndim == 5:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0, 0]), cmap='gray')
                             plt.imshow(np.squeeze(mask_batch[0, :, :, 0, 0]), alpha=0.15)
                         plt.savefig(join(root_path, 'logs', 'ex_train.png'), format='png', bbox_inches='tight')
                         plt.close()'''
                     if net.find('caps') != -1: # if the network is capsule/segcaps structure
-                        yield ([img_batch, mask_batch], [mask_batch, mask_batch*img_batch])
+                        mid_slice = input_slices // 2
+                        start_index = mid_slice * modalities
+                        img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                       
+                        mask_batch_masked = oneHot2LabelMax(mask_batch)
+                        mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                        mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                        mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                        masked_img = mask_batch_masked_expand*img_batch_mid_slice
+                        
+                        '''plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', '{}_img.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()
+                        plt.imshow(np.squeeze(mask_batch_masked[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', '{}_mask_masked.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()
+                        plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', '{}_mask.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()
+                        plt.imshow(np.squeeze(masked_img[0, :, :, 0]), cmap='gray')
+                        plt.savefig(join(root_path, 'logs', '{}_masked_img.png'.format(j)), format='png', bbox_inches='tight')
+                        plt.close()'''
+                        yield ([img_batch, mask_batch_masked], [mask_batch, masked_img])
                     else:
                         yield (img_batch, mask_batch)
-
         if count != 0:
+            #if aug_data:
+            #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
+            #                                                                  mask_batch[:count,...])
             if net.find('caps') != -1:
-                yield ([img_batch[:count, ...], mask_batch[:count, ...]],
-                       [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
+                mid_slice = input_slices // 2
+                start_index = mid_slice * modalities
+                img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+
+                mask_batch_masked = oneHot2LabelMax(mask_batch)
+                mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+                yield ([img_batch[:count, ...], 1 - mask_batch_masked[:count, ...]],
+                       [mask_batch[:count, ...], mask_batch_masked_expand[:count, ...] * img_batch_mid_slice[:count, ...]])
             else:
                 yield (img_batch[:count,...], mask_batch[:count,...])
 
 @threadsafe_generator
 def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
-                         stride=1, downSampAmt=1, shuff=1):
+                         stride=1, downSampAmt=1, shuff=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for validation
+    
     modalities = net_input_shape[2] // numSlices
+    input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    mask_shape = [net_input_shape[0],net_input_shape[1], 4]
+    mask_shape = [net_input_shape[0],net_input_shape[1], num_output_classes]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
-    mask_batch[:, :, :, :] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-
+    
+    if dataset == 'brats':
+        np_converter = convert_brats_data_to_numpy
+        frame_pixels_0 = 8
+        frame_pixels_1 = -8
+        empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+        raw_x_shape = 240
+        raw_y_shape = 240
+    elif dataset in ['heart', 'spleen']:
+        if dataset == 'heart':
+            np_converter = convert_heart_data_to_numpy
+        else:
+            np_converter = convert_spleen_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = net_input_shape[0]
+        if num_output_classes == 2:
+            empty_mask = np.array([one_hot_max, 1-one_hot_max])
+        else:
+            empty_mask = np.array([1-one_hot_max])
+        raw_x_shape = net_input_shape[0]
+        raw_y_shape = net_input_shape[1]
+    else:
+        assert False, 'Dataset not recognized'
+    
     while True:
         if shuff:
             shuffle(val_list)
@@ -436,7 +383,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     val_mask = data['mask']
             except:
                 print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-                val_img, val_mask = convert_data_to_numpy(root_path, scan_name)
+                val_img, val_mask = np_converter(root_path, scan_name)
                 if np.array_equal(val_img,np.zeros(1)):
                     continue
                 else:
@@ -449,34 +396,29 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     numSlices -= 1
                 sideSlices = numSlices / 2
 
-            indicies = np.arange(0, val_img.shape[2], stride)
             z_shape = val_img.shape[2]
+            indicies = np.arange(0, z_shape, stride)
             
             if shuff:
                 shuffle(indicies)
 
             for j in indicies:
-                if not np.any(val_mask[:, :,  j:j+numSlices]):
-                    continue
+                #if not np.any(val_mask[:, :,  j:j+numSlices]):
+                #    continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
-                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
-                    index = -modalities
-                    for k in range(j-sideSlices, j+sideSlices):
-                        index += modalities
+                    next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
+                    insertion_index = -modalities
+                    img_index = 0
+                    for k in range(j-sideSlices, j+sideSlices+1):
+                        insertion_index += modalities
                         if (k < 0): continue
                         if (k >= z_shape): break
-                        img_batch[count, 8:-8, 8:-8, index:index+modalities] = next_img[:, :, index:index+modalities]
+                        img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                        img_index += modalities
                     
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    mask_batch[count, 8:-8, 8:-8, :] = val_mask[:, :, j]
-
-                elif img_batch.ndim == 5:
-                    # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                    img_batch[count] = 0
-                    mask_batch[count] = np.array([one_hot_max,1-one_hot_max,1-one_hot_max,1-one_hot_max])
-                    img_batch[count, 8:-8, 8:-8, :, :] = val_img[:, :, j : j+numSlices]
-                    mask_batch[count, 8:-8, 8:-8, :, :] = val_mask[:, :, j]
+                    mask_batch[count] = empty_mask
+                    mask_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :] = val_mask[:, :, j]
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
@@ -484,12 +426,25 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 count += 1
                 if count % batchSize == 0:
                     count = 0
-                    if net.find('caps') != -1:
-                        yield ([img_batch, mask_batch], [mask_batch, mask_batch * img_batch])
+                    if net.find('caps') != -1: # if the network is capsule/segcaps structure
+                        mid_slice = input_slices // 2
+                        start_index = mid_slice * modalities
+                        img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                       
+                        mask_batch_masked = oneHot2LabelMax(mask_batch)
+                        mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                        mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                        mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                        masked_img = mask_batch_masked_expand*img_batch_mid_slice
+                        yield ([img_batch, 1 - mask_batch_masked], [mask_batch, masked_img])
                     else:
                         yield (img_batch, mask_batch)
 
         if count != 0:
+            #if aug_data:
+            #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
+            #                                                                  mask_batch[:count,...])
             if net.find('caps') != -1:
                 yield ([img_batch[:count, ...], mask_batch[:count, ...]],
                        [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
@@ -498,14 +453,34 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
 
 @threadsafe_generator
 def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, numSlices=1, subSampAmt=0,
-                          stride=1, downSampAmt=1):
+                          stride=1, downSampAmt=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for testing
+    print('Generate test batches for ' + str(dataset))
     print('\nload_3D_data.generate_test_batches')
     print("Batch size {}".format(batchSize))
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     modalities = net_input_shape[2] // numSlices
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
+    
+    if dataset == 'brats':
+        np_converter = convert_brats_data_to_numpy
+        frame_pixels_0 = 8
+        frame_pixels_1 = -8
+        raw_x_shape = 240
+        raw_y_shape = 240
+    elif dataset in ['heart', 'spleen']:
+        if dataset == 'heart':
+            np_converter = convert_heart_data_to_numpy
+        else:
+            np_converter = convert_spleen_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = net_input_shape[0]
+        raw_x_shape = net_input_shape[0]
+        raw_y_shape = net_input_shape[1]
+    else:
+        assert False, 'Dataset not recognized'
+    
     for i, scan_name in enumerate(test_list):
         try:
             scan_name = scan_name[0]
@@ -516,7 +491,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         except Exception as err:
             print(err)
             print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-            test_img = convert_data_to_numpy(root_path, scan_name, no_masks=False)[0]
+            test_img = np_converter(root_path, scan_name, no_masks=False)[0]
             if np.array_equal(test_img,np.zeros(1)):
                 continue
             else:
@@ -529,24 +504,24 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
                 numSlices -= 1
             sideSlices = numSlices / 2
 
-            indicies = np.arange(0, test_img.shape[2], stride)
-            z_shape = test_img.shape[2]
+        z_shape = test_img.shape[2]
+        indicies = np.arange(0, z_shape, stride)
 
-        #print(test_img.shape)
-        indicies = np.arange(0, test_img.shape[2], stride)
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
-                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices,z_shape)].reshape(240, 240, -1)
-                index = -modalities
-                for k in range(j-sideSlices, j+sideSlices):
-                    index += modalities
+                next_img = test_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
+                insertion_index = -modalities
+                img_index = 0
+                for k in range(j-sideSlices, j+sideSlices+1):
+                    insertion_index += modalities
                     if (k < 0): continue
                     if (k >= z_shape): break
-                    img_batch[count, 8:-8, 8:-8, index:index+modalities] = next_img[:, :, index:index+modalities]
+                    img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                    img_index += modalities
             elif img_batch.ndim == 5:
                 # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                img_batch[count, 8:-8, 8:-8, :, :] = test_img[:, :,  j : j+numSlices]
+                img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :, :] = test_img[:, :,  j : j+numSlices]
             else:
                 print('Error this function currently only supports 2D and 3D data.')
                 exit(0)

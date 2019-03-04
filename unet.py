@@ -6,7 +6,7 @@ This file contains an implementation of U-Net based on the paper
 from keras.models import Model
 from keras.layers import Input, concatenate, Conv2D, MaxPooling2D, Conv2DTranspose
 
-def UNet(input_shape=(512,512,1)):
+def UNet(input_shape=(512,512,1), out_classes = 2):
     inputs = Input(input_shape)
     conv1 = Conv2D(64, (3, 3), activation='relu', padding='same')(inputs)
     conv1 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv1)
@@ -43,7 +43,7 @@ def UNet(input_shape=(512,512,1)):
     conv9 = Conv2D(64, (3, 3), activation='relu', padding='same')(up9)
     conv9 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv9)
 
-    conv10 = Conv2D(1, (1, 1), activation='sigmoid')(conv9)
+    conv10 = Conv2D(out_classes, (1, 1), activation='sigmoid')(conv9)
 
     model = Model(inputs=[inputs], outputs=[conv10])
 
