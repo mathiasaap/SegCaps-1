@@ -41,11 +41,13 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
         img = img.astype(np.float32)
         img = np.rollaxis(img, 0, 3) 
         
-        img -= mean
-        img /= std
+        #img -= mean
+        #img /= std
         
-        img = np.clip(img, + heart_min, heart_max)
-        img = (img - heart_min) / (heart_max - heart_min)
+        img[img > heart_max] = heart_max
+        img[img < heart_min] = heart_min
+        img += -heart_min
+        img /= (heart_max + -heart_min)
         
         #img = img[:, :, :, 3] # Select only t1w during initial testing
         #img = (img-img.mean())/img.std()

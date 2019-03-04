@@ -267,7 +267,7 @@ def CapsNetR3(input_shape, modalities=1, n_class=2):
     print(train_outputs[1].shape)
     #assert False
     train_model = models.Model(inputs=[x, y], outputs=train_outputs)
-    eval_model = models.Model(inputs=x, outputs=[out_seg, shared_decoder(masked)])
+    eval_model = models.Model(inputs=x, outputs=[out_seg, shared_decoder(masked)]) #TODO: Check masked by y for testing!
 
     # manipulate model
     noise = layers.Input(shape=((H.value, W.value, C.value, A.value)))

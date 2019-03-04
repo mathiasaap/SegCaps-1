@@ -16,6 +16,9 @@ def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
         out = tf.nn.softmax(out, axis=3)
     
     eps = 1e-5
+    
+    y = y[..., 1:]
+    out = out[..., 1:]
     intersection = tf.reduce_sum(out * y, axis=axis)
     union = eps + tf.reduce_sum(out*out, axis=axis) + tf.reduce_sum(y*y, axis=axis)
     entropy = ( ( (2 * intersection) + eps) / (union))

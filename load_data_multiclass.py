@@ -172,7 +172,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                            stride=1, downSampAmt=1, shuff=1, aug_data=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for training
     # (img_shape[1], img_shape[2], args.slices)
-    print(dataset)
+    print('train ' + str(dataset))
     modalities = net_input_shape[2] // numSlices
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
