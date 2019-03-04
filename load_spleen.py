@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 
-def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
+def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False, num_classes=2):
     fname = img_name[:-7]
     numpy_path = join(root_path, 'np_files')
     img_path = join(root_path, 'imgs')
@@ -23,7 +23,7 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
 
     ct_min = -1024
     ct_max = 3072
-    
+
     #mean = np.array([-541.1801174550513])
     #std = np.array([492.2428379436813])
 
@@ -40,34 +40,37 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
         img = sitk.GetArrayFromImage(itk_img)
 
         img = img.astype(np.float32)
-        img = np.rollaxis(img, 0, 3) 
-        
+        img = np.rollaxis(img, 0, 3)
+
         img[img > ct_max] = ct_max
         img[img < ct_min] = ct_min
         img += -ct_min
         img /= (ct_max + -ct_min)
-        
+
         #img = img[:, :, :, 3] # Select only t1w during initial testing
         #img = (img-img.mean())/img.std()
-        
-        
+
+
         if not no_masks:
             itk_mask = sitk.ReadImage(join(mask_path, img_name))
             mask = sitk.GetArrayFromImage(itk_mask)
             mask = np.rollaxis(mask, 0, 3)
             #mask[mask < 0.5] = 0 # Background
             #mask[mask > 0.5] = 1 # Edema, Enhancing and Non enhancing tumor
-            
+
             label = mask.astype(np.int64)
-            masks = np.eye(2)[label]
+            if num_classes == 1:
+                masks = label.reshape(512,512,-1,1)
+            else:
+                masks = np.eye(num_classes)[label]
             print("Created mask shape: {}".format(masks.shape))
             #mask = masks.astype(np.float32)
-            
+
             #masks[masks>0.5] = one_hot_max
             #masks[masks<0.5] = 1-one_hot_max
             mask = masks
             #mask = masks.astype(np.uint8)
-            
+
 
         try:
             f, ax = plt.subplots(1, 3, figsize=(15, 5))
@@ -109,7 +112,7 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
             return img, mask
         else:
             return img
-        
+
     except Exception as e:
         print('\n'+'-'*100)
         print('Unable to load img or masks for {}'.format(fname))

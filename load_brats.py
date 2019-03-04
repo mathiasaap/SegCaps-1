@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 
-def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False):
+def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False, num_classes=4):
     fname = img_name[:-7]
     numpy_path = join(root_path, 'np_files')
     img_path = join(root_path, 'imgs')
@@ -42,24 +42,27 @@ def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
         img = img.astype(np.float32)
 
         img = np.rollaxis(img, 0, 4)
-        img = np.rollaxis(img, 0, 3) 
-        
+        img = np.rollaxis(img, 0, 3)
+
         for i in range(4):
             img[img[:,:,:,i] > brats_max[i]] = brats_max[i]
             img[img[:,:,:,i] < brats_min[i]] = brats_min[i]
-    
+
         img += -brats_min
         img /= (brats_max + -brats_min)
-        
-        
+
+
         if not no_masks:
             itk_mask = sitk.ReadImage(join(mask_path, img_name))
             mask = sitk.GetArrayFromImage(itk_mask)
             mask = np.rollaxis(mask, 0, 3)
-            
+
             label = mask.astype(np.int64)
-            mask_onehot = np.eye(4)[label]
-           
+            if num_classes == 1:
+                mask_onehot = label.reshape(240,240,-1,1)
+            else:
+                mask_onehot = np.eye(num_classes)[label]
+
 
         try:
             show_modal = 0
@@ -92,7 +95,7 @@ def convert_brats_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
             print('Error creating qualitative figure for {}'.format(fname))
             print(e)
             print('-'*100+'\n')
-            
+
         if not no_masks:
             np.savez_compressed(join(numpy_path, fname + '.npz'), img=img, mask=mask_onehot)
         else:

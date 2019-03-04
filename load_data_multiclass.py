@@ -122,7 +122,7 @@ def split_data(root_path, num_splits):
         with open(join(outdir,'test_split_' + str(0) + '.csv'), 'w') as csvfile:
             writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             writer.writerow([basename(mask_list[0])])
-     
+
     else:
         kf = KFold(n_splits=num_splits)
         n = 0
@@ -136,7 +136,7 @@ def split_data(root_path, num_splits):
                 for i in test_index:
                     writer.writerow([basename(mask_list[i])])
             n += 1
-            
+
 
 
 ''' Make the generators threadsafe in case of multiple threads '''
@@ -179,7 +179,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     mask_shape = [net_input_shape[0], net_input_shape[1], num_output_classes]
     #print(mask_shape)
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
-    
+
     if dataset == 'brats':
         np_converter = convert_brats_data_to_numpy
         frame_pixels_0 = 8
@@ -218,7 +218,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     train_mask = data['mask']
             except:
                 #print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-                train_img, train_mask = np_converter(root_path, scan_name) 
+                train_img, train_mask = np_converter(root_path, scan_name, num_classes=num_output_classes)
                 if np.array_equal(train_img,np.zeros(1)):
                     continue
                 else:
@@ -234,11 +234,11 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
 
             z_shape = train_img.shape[2]
             indicies = np.arange(0, z_shape, stride)
-            
+
             if shuff:
                 shuffle(indicies)
             for j in indicies:
-                
+
                 if (is_binary_classification and np.sum(train_mask[:, :, j]) < 1) or (not is_binary_classification and np.sum(train_mask[:, :, j, 1:]) < 1):
                     #print('hola')
                     continue
@@ -260,7 +260,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
-                    
+
                 if aug_data:
                     img_batch[count], mask_batch[count] = elasticDeform2D(img_batch[count], mask_batch[count], alpha=720, sigma=24, mode='reflect', is_random=True)
                 count += 1
@@ -295,14 +295,14 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                         mid_slice = input_slices // 2
                         start_index = mid_slice * modalities
                         img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
-                       
+
                         mask_batch_masked = oneHot2LabelMax(mask_batch)
                         mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
                         mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
                         mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
 
                         masked_img = mask_batch_masked_expand*img_batch_mid_slice
-                        
+
                         '''plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
                         plt.savefig(join(root_path, 'logs', '{}_img.png'.format(j)), format='png', bbox_inches='tight')
                         plt.close()
@@ -340,13 +340,13 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
 def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
                          stride=1, downSampAmt=1, shuff=1, dataset = 'brats', num_output_classes=2):
     # Create placeholders for validation
-    
+
     modalities = net_input_shape[2] // numSlices
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     mask_shape = [net_input_shape[0],net_input_shape[1], num_output_classes]
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
-    
+
     if dataset == 'brats':
         np_converter = convert_brats_data_to_numpy
         frame_pixels_0 = 8
@@ -369,7 +369,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         raw_y_shape = net_input_shape[1]
     else:
         assert False, 'Dataset not recognized'
-    
+
     while True:
         if shuff:
             shuffle(val_list)
@@ -383,7 +383,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                     val_mask = data['mask']
             except:
                 print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-                val_img, val_mask = np_converter(root_path, scan_name)
+                val_img, val_mask = np_converter(root_path, scan_name, num_classes=num_output_classes)
                 if np.array_equal(val_img,np.zeros(1)):
                     continue
                 else:
@@ -398,7 +398,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
 
             z_shape = val_img.shape[2]
             indicies = np.arange(0, z_shape, stride)
-            
+
             if shuff:
                 shuffle(indicies)
 
@@ -416,7 +416,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                         if (k >= z_shape): break
                         img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
                         img_index += modalities
-                    
+
                     mask_batch[count] = empty_mask
                     mask_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :] = val_mask[:, :, j]
                 else:
@@ -430,7 +430,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                         mid_slice = input_slices // 2
                         start_index = mid_slice * modalities
                         img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
-                       
+
                         mask_batch_masked = oneHot2LabelMax(mask_batch)
                         mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
                         mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
@@ -462,7 +462,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
     modalities = net_input_shape[2] // numSlices
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
-    
+
     if dataset == 'brats':
         np_converter = convert_brats_data_to_numpy
         frame_pixels_0 = 8
@@ -480,7 +480,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         raw_y_shape = net_input_shape[1]
     else:
         assert False, 'Dataset not recognized'
-    
+
     for i, scan_name in enumerate(test_list):
         try:
             scan_name = scan_name[0]
@@ -491,7 +491,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         except Exception as err:
             print(err)
             print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-            test_img = np_converter(root_path, scan_name, no_masks=False)[0]
+            test_img = np_converter(root_path, scan_name, no_masks=False, num_classes=num_output_classes)[0]
             if np.array_equal(test_img,np.zeros(1)):
                 continue
             else:
@@ -533,4 +533,3 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
 
     if count != 0:
         yield (img_batch[:count,:,:,:])
-        
