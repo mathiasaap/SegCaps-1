@@ -53,6 +53,9 @@ def get_loss(root, split, net, recon_wei, choice):
         return {'out_seg': loss, 'out_recon': 'mse'}, {'out_seg': 1., 'out_recon': recon_wei}
     else:
         return loss, None
+    
+def schedule_lr(epoch, prev_lr):
+    return prev_lr * 0.93
 
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
@@ -72,10 +75,11 @@ def get_callbacks(arguments):
     model_checkpoint = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_model_' + arguments.time + '.hdf5'),
                                        monitor=monitor_name, save_best_only=False, save_weights_only=False,
                                        verbose=1, mode='max')
-    lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.25, cooldown=0, patience=5,verbose=1, mode='max')
+    #lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.25, cooldown=0, patience=5,verbose=1, mode='max')
+    sched_lr = LearningRateScheduler(schedule_lr, verbose=1)
     early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=25, verbose=0, mode='max')
 
-    return [model_checkpoint, csv_logger, lr_reducer, early_stopper, tb]
+    return [model_checkpoint, csv_logger, sched_lr, early_stopper, tb]
 
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
@@ -170,6 +174,7 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
         weights_path = join(args.data_root_dir, args.weights_path)
         try:
             model.load_weights(weights_path)
+            #K.set_value(model.optimizer.lr, 0.001)
         except:
             assert False, 'Unable to find weights path.'
     # Set the callbacks
