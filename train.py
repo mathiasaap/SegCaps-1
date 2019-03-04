@@ -29,7 +29,7 @@ from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_los
 from load_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
-
+init_adam_lr = 1
 
 def get_loss(root, split, net, recon_wei, choice):
     if choice == 'w_bce':
@@ -54,8 +54,8 @@ def get_loss(root, split, net, recon_wei, choice):
     else:
         return loss, None
     
-def schedule_lr(epoch, prev_lr):
-    return prev_lr * 0.93
+def schedule_lr(epoch):
+    return init_adam_lr * (0.93 ** epoch)
 
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
@@ -84,6 +84,7 @@ def get_callbacks(arguments):
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
     opt = Adam(lr=args.initial_lr, beta_1=0.99, beta_2=0.999, decay=1e-6)
+    
     if args.net.find('caps') != -1:
         if "multi" in args.loss:
             metrics = {'out_seg': multiclass_dice_score}
@@ -113,7 +114,7 @@ def compile_model(args, net_input_shape, uncomp_model):
             model = multi_gpu_model(uncomp_model, gpus=args.gpus)
             model.__setattr__('callback_model', uncomp_model)
         model.compile(optimizer=opt, loss=loss, loss_weights=loss_weighting, metrics=metrics)
-        return model
+        return model, opt
 
 
 def plot_training(training_history, arguments):
@@ -167,9 +168,8 @@ def plot_training(training_history, arguments):
 DEBUG = False
 def train(args, train_list, val_list, u_model, net_input_shape, num_output_classes=2):
     # Compile the loaded model
-    print(args.dataset)
-    print(net_input_shape)
-    model = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
+    global init_adam_lr
+    model, opt = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
     if args.weights_path:
         weights_path = join(args.data_root_dir, args.weights_path)
         try:
@@ -179,6 +179,7 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
             assert False, 'Unable to find weights path.'
     # Set the callbacks
     callbacks = get_callbacks(args)
+    init_adam_lr = opt.get_config()['lr']
     #val_list = train_list
 
     
