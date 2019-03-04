@@ -22,7 +22,7 @@ from keras.optimizers import Adam
 from keras import backend as K
 K.set_image_data_format('channels_last')
 from keras.utils.training_utils import multi_gpu_model
-from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard
+from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard, LearningRateScheduler
 import tensorflow as tf
 
 from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score
@@ -105,7 +105,7 @@ def compile_model(args, net_input_shape, uncomp_model):
         print(loss)
         print(loss_weighting)
         uncomp_model.compile(optimizer=opt, loss=loss, loss_weights=loss_weighting, metrics=metrics)
-        return uncomp_model
+        return uncomp_model, opt
     # If using multiple GPUs
     else:
 
