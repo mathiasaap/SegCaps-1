@@ -139,7 +139,7 @@ if __name__ == '__main__':
                         help="If using capsnet: The coefficient (weighting) for the loss of decoder")
     parser.add_argument('--slices', type=int, default=1,
                         help='Number of slices to include for training/testing.')
-    parser.add_argument('--dataset', type=str.lower, default='brats', choices=['brats', 'luna16', 'heart', 'spleen', 'colon'],
+    parser.add_argument('--dataset', type=str.lower, default='brats', choices=['brats', 'luna16', 'heart', 'spleen', 'colon', 'hepatic'],
                         help='Which dataset to use.')
     parser.add_argument('--subsamp', type=int, default=-1,
                         help='Number of slices to skip when forming 3D samples for training. Enter -1 for random '
