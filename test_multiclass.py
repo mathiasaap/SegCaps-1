@@ -204,12 +204,12 @@ def test(args, test_list, model_list, net_input_shape):
                 output_raw = output
                 output = oneHot2LabelMax(output)
 
-            label = output.astype(np.int64)
+            out = output.astype(np.int64)
 
             if args.out_classes == 1:
-                outputOnehot = label.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
+                outputOnehot = out.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
             else:
-                outputOnehot = np.eye(args.out_classes)[label].astype(np.uint8)
+                outputOnehot = np.eye(args.out_classes)[out].astype(np.uint8)
 
 
             output_img = sitk.GetImageFromArray(output)
@@ -362,7 +362,7 @@ def test(args, test_list, model_list, net_input_shape):
                 print('\tASSD: {}'.format(assd_arr[i]))
                 row.append(assd_arr[i])
             try:
-                surf_arr[i] = compute_surface_distances(gtOnehot, outputOnehot, voxelspacing=sitk_img.GetSpacing())
+                surf_arr[i] = compute_surface_distances(label, out, sitk_img.GetSpacing())
                 print('\tSurface distance: {}'.format(surf_arr[i]))
             except:
                 pass
