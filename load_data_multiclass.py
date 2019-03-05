@@ -322,7 +322,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             #if aug_data:
             #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
             #                                                                  mask_batch[:count,...])
-            if net.find('caps') != -1:
+            if net.find('caps') != -1: #TODO: This is not correct for several slices
                 mid_slice = input_slices // 2
                 start_index = mid_slice * modalities
                 img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
@@ -445,7 +445,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
             #if aug_data:
             #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
             #                                                                  mask_batch[:count,...])
-            if net.find('caps') != -1:
+            if net.find('caps') != -1: #TODO: This is not correct for several slices
                 yield ([img_batch[:count, ...], mask_batch[:count, ...]],
                        [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
             else:

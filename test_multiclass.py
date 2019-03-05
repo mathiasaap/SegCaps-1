@@ -28,6 +28,7 @@ from metrics import dc, jc, assd, jaccard
 from keras import backend as K
 K.set_image_data_format('channels_last')
 from keras.utils import print_summary
+from msd_metrics import compute_dice_coefficient, compute_surface_dice_at_tolerance, compute_surface_distances
 
 
 from load_data_multiclass import generate_test_batches
@@ -144,6 +145,8 @@ def test(args, test_list, model_list, net_input_shape):
     if args.compute_assd:
         assd_arr = np.zeros((len(test_list)))
         outfile += 'assd_'
+    surf_arr = np.zeros((len(test_list)))
+    dice2_arr = np.zeros((len(test_list)))
 
     # Testing the network
     print('Testing... This will take some time...')
@@ -358,7 +361,14 @@ def test(args, test_list, model_list, net_input_shape):
                 assd_arr[i] = assd(outputOnehot, gtOnehot, voxelspacing=sitk_img.GetSpacing(), connectivity=1)
                 print('\tASSD: {}'.format(assd_arr[i]))
                 row.append(assd_arr[i])
-
+            try:
+                surf_arr[i] = compute_surface_distances(gtOnehot, outputOnehot, voxelspacing=sitk_img.GetSpacing())
+                print('\tSurface distance: {}'.format(surf_arr[i]))
+            except:
+                pass
+            dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
+            print('\tMSD Dice: {}'.format(dice2_arr[i]))
+            
             writer.writerow(row)
 
         row = ['Average Scores']
@@ -368,6 +378,9 @@ def test(args, test_list, model_list, net_input_shape):
             row.append(np.mean(jacc_arr))
         if args.compute_assd:
             row.append(np.mean(assd_arr))
+        row.append(np.mean(surf_arr))
+        row.append(np.mean(dice2_arr))
+        
         writer.writerow(row)
 
     print('Done.')
