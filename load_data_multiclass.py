@@ -28,6 +28,8 @@ import time
 from load_heart import convert_heart_data_to_numpy
 from load_spleen import convert_spleen_data_to_numpy
 from load_brats import convert_brats_data_to_numpy
+from load_hepatic import convert_hepatic_data_to_numpy
+from load_colon import convert_colon_data_to_numpy
 from postprocess import oneHot2LabelMax
 from augmentation import augment_random, elasticDeform2D, elasticDeform3D
 
@@ -43,7 +45,7 @@ from keras.preprocessing.image import *
 
 from custom_data_aug import elastic_transform, salt_pepper_noise
 
-debug = 0
+debug = 1
 
 def load_data(root, split):
     # Load the training and testing lists
@@ -163,6 +165,16 @@ def threadsafe_generator(f):
         return threadsafe_iter(f(*a, **kw))
     return g
 
+def get_np_converter(dataset):
+    if dataset == 'heart':
+        return convert_heart_data_to_numpy
+    elif dataset == 'hepatic':
+        return convert_hepatic_data_to_numpy
+    elif dataset == 'colon':
+        return convert_colon_data_to_numpy
+    else:
+        return convert_spleen_data_to_numpy
+        
 one_hot_max = 1.0 # Value of positive class in one hot
 
 
@@ -188,10 +200,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
         raw_x_shape = 240
         raw_y_shape = 240
     elif dataset in ['heart', 'spleen', 'colon', 'hepatic']:
-        if dataset == 'heart':
-            np_converter = convert_heart_data_to_numpy
-        else:
-            np_converter = convert_spleen_data_to_numpy # Colon and Hepatic has same dims and is CT as Spleen
+        np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
         if num_output_classes == 2:
@@ -242,8 +251,6 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 if (is_binary_classification and np.sum(train_mask[:, :, j]) < 1) or (not is_binary_classification and np.sum(train_mask[:, :, j, 1:]) < 1):
                     #print('hola')
                     continue
-                if aug_data:
-                    train_img, train_mask = augment_random(train_img, train_mask)
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
                     next_img = train_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
@@ -262,7 +269,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                     exit(0)
 
                 if aug_data:
-                    img_batch[count], mask_batch[count] = elasticDeform2D(img_batch[count], mask_batch[count], alpha=720, sigma=24, mode='reflect', is_random=True)
+                    img_batch[count], mask_batch[count] = augment_random(img_batch[count], mask_batch[count])
                 count += 1
                 if count % batchSize == 0:
                     count = 0
@@ -271,7 +278,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice1.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
-                            '''plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice2.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 8]), cmap='gray')
@@ -285,7 +292,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                             plt.close()
                             plt.imshow(np.squeeze(img_batch[0, :, :, 16]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice5.png'.format(j)), format='png', bbox_inches='tight')
-                            plt.close()'''
+                            plt.close()
                         '''elif img_batch.ndim == 5:
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0, 0]), cmap='gray')
                             plt.imshow(np.squeeze(mask_batch[0, :, :, 0, 0]), alpha=0.15)
@@ -355,10 +362,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         raw_x_shape = 240
         raw_y_shape = 240
     elif dataset in ['heart', 'spleen', 'colon', 'hepatic']:
-        if dataset == 'heart':
-            np_converter = convert_heart_data_to_numpy
-        else:
-            np_converter = convert_spleen_data_to_numpy # Colon has same dims and is CT as Spleen
+        np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
         if num_output_classes == 2:
@@ -470,10 +474,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         raw_x_shape = 240
         raw_y_shape = 240
     elif dataset in ['heart', 'spleen', 'colon', 'hepatic']:
-        if dataset == 'heart':
-            np_converter = convert_heart_data_to_numpy
-        else:
-            np_converter = convert_spleen_data_to_numpy # Colon has same dims and is CT as Spleen
+        np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
         raw_x_shape = net_input_shape[0]

@@ -6,7 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
 
-def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False, num_classes=2):
+def convert_colon_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False, num_classes=2):
     fname = img_name[:-7]
     numpy_path = join(root_path, 'np_files')
     img_path = join(root_path, 'imgs')
@@ -23,11 +23,9 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
 
 
     ct_min = -1024.0
-    ct_max = 3072.0
-    #Spleen Min: [-1024.0]
-    #Spleen Max: [3072.0]
-    #mean = np.array([-541.1801174550513])
-    #std = np.array([492.2428379436813])
+    ct_max = 13438.0
+    #Colon Min: [-1024.0]
+    #Colon Max: [13438.0]
 
     if not overwrite:
         try:

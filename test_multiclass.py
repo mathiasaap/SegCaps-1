@@ -145,7 +145,7 @@ def test(args, test_list, model_list, net_input_shape):
     if args.compute_assd:
         assd_arr = np.zeros((len(test_list)))
         outfile += 'assd_'
-    surf_arr = np.zeros((len(test_list)))
+    surf_arr = np.zeros((len(test_list)), dtype=str)
     dice2_arr = np.zeros((len(test_list)))
 
     # Testing the network
@@ -171,6 +171,7 @@ def test(args, test_list, model_list, net_input_shape):
 
             if args.dataset == 'brats':
                 num_slices = img_data.shape[1]#brats
+                img_data = np.rollaxis(img_data,0,4)
 
             print(args.dataset)
 
@@ -362,9 +363,14 @@ def test(args, test_list, model_list, net_input_shape):
                 print('\tASSD: {}'.format(assd_arr[i]))
                 row.append(assd_arr[i])
             try:
-                surf_arr[i] = compute_surface_distances(label, out, sitk_img.GetSpacing())
-                print('\tSurface distance: {}'.format(surf_arr[i]))
+                spacing = np.array(sitk_img.GetSpacing())
+                if args.dataset == 'brats':
+                   spacing = spacing[1:]
+                surf = compute_surface_distances(label, out, spacing)
+                surf_arr[i] = str(surf)
+                print('\tSurface distance ' + str(surf_arr[i]))
             except:
+                print("surf failed")
                 pass
             dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
             print('\tMSD Dice: {}'.format(dice2_arr[i]))

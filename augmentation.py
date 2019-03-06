@@ -3,6 +3,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import map_coordinates
 import numpy as np
 import time
+from keras.preprocessing.image import *
 
 def elasticDeform3D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
     if is_random is False:
@@ -89,28 +90,63 @@ def elasticDeform2D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False
     return newX, y
 
 def augment_random(image, label):
-    rot = [random.randint(0, 3) for i in range(3)]
-    flip = [random.randint(0, 1) for i in range(3)]
-    '''if rot[0]:
-        image = np.rot90(image, rot[0], axes=(1, 2))
-        label = np.rot90(label, rot[0], axes=(1, 2))
-    if rot[1]:
-        image = np.rot90(image, rot[1], axes=(0, 2))
-        label = np.rot90(label, rot[1], axes=(0, 2))'''
-    if rot[2]:
-        image = np.rot90(image, rot[2], axes=(0, 1))
-        label = np.rot90(label, rot[2], axes=(0, 1))
+    
+    #happens first
+    if np.random.randint(0, 5) == 3:
+        image, label = elasticDeform2D(image, label, alpha=720, sigma=24, is_random=True)
+    
+    #Img [x,x,slices*modalities]
+    num_sm = image.shape[2]
+    num_classes = label.shape[2]
+    img_and_mask = np.zeros((num_sm + num_classes, image.shape[0], image.shape[1]))
+    
+    image = np.rollaxis(image, 2, 0)
+    label = np.rollaxis(label, 2, 0)
+   
+    img_and_mask[:num_sm] = image
+    img_and_mask[num_sm:] = label
+    
+    
+    if np.random.randint(0,10) == 7:
+        img_and_mask = random_rotation(img_and_mask, rg=180, row_axis=0, col_axis=1, channel_axis=2,
+                                       fill_mode='constant', cval=0.)
 
-    if flip[0]:
-        image = image[::-1]
-        label = label[::-1]
-    if flip[1]:
-        image = image[:, ::-1]
-        label = label[:, ::-1]
-    if flip[2]:
-        image = image[:, :, ::-1]
-        label = label[:, :, ::-1]
-        
-    #image, label = elasticDeform3D(image, label, alpha=720, sigma=24, mode='reflect', is_random=True)
+
+    if np.random.randint(0, 10) == 7:
+        img_and_mask = random_shift(img_and_mask, wrg=0.2, hrg=0.2, row_axis=0, col_axis=1, channel_axis=2,
+                                    fill_mode='constant', cval=0.)
+
+    if np.random.randint(0, 10) == 7:
+        img_and_mask = random_shear(img_and_mask, intensity=16, row_axis=0, col_axis=1, channel_axis=2,
+                     fill_mode='constant', cval=0.)
+
+    if np.random.randint(0, 10) == 7:
+        img_and_mask = random_zoom(img_and_mask, zoom_range=(0.8, 0.8), row_axis=0, col_axis=1, channel_axis=2,
+                     fill_mode='constant', cval=0.)
+
+    if np.random.randint(0, 10) == 7:
+        img_and_mask = flip_axis(img_and_mask, axis=1)
+
+    if np.random.randint(0, 10) == 7:
+        img_and_mask = flip_axis(img_and_mask, axis=0)
+      
+    
+    image = img_and_mask[:num_sm] 
+    label = img_and_mask[num_sm:]
+    
+    image = np.rollaxis(image, 0, 3)
+    label = np.rollaxis(label, 0, 3)
+    
+    default_one_hot_label = [0] * num_classes
+    default_one_hot_label[0] = 1
+    label[np.where(np.sum(label, axis =-1) == 0)] = default_one_hot_label
+    
+            
+    #Label [x,x,classes]
+    
+    # img = [x,y,slices*modalities]
+    # [x,y,classes]
+    
+    # img_and_mask = [slices*modalities + classes, x, y]
         
     return image, label
