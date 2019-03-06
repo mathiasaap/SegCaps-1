@@ -19,9 +19,9 @@ def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
         out = tf.math.minimum(y * out, 1) + ((1-y) * out)
 
     eps = 1e-5
-    
+
     start_channel = 0 # Should include background when calculating dice?
-    
+
     y = y[..., start_channel:]
     out = out[..., start_channel:]
 
@@ -134,6 +134,19 @@ def dice_hard(y_true, y_pred, threshold=0.5, axis=[1,2,3], smooth=1e-5):
     hard_dice = tf.reduce_mean(hard_dice)
     return hard_dice
 
+def multiclass_dice_soft_score_without_background(y_pred, y_true, axis=[1,2,3], smooth=1e-5):
+    y_pred = tf.math.minimum(y_true * y_pred, 1) + ((1-y_true) * y_pred)
+
+    y_pred = y_pred[:, :, :, 1:]
+    y_true = y_true[:, :, :, 1:]
+
+    inse = tf.reduce_sum(tf.multiply(y_pred, y_true), axis=axis)
+    l = tf.reduce_sum(y_pred, axis=axis)
+    r = tf.reduce_sum(y_true, axis=axis)
+
+    hard_dice = (2. * inse + smooth) / (l + r + smooth)
+    hard_dice = tf.reduce_mean(hard_dice)
+    return hard_dice
 
 def dice_loss(y_true, y_pred, from_logits=False):
     return 1-dice_soft(y_true, y_pred, from_logits=False)

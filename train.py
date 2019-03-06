@@ -25,7 +25,7 @@ from keras.utils.training_utils import multi_gpu_model
 from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard, LearningRateScheduler
 import tensorflow as tf
 
-from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score
+from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score, multiclass_dice_soft_score_without_background
 from load_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
@@ -53,7 +53,7 @@ def get_loss(root, split, net, recon_wei, choice):
         return {'out_seg': loss, 'out_recon': 'mse'}, {'out_seg': 1., 'out_recon': recon_wei}
     else:
         return loss, None
-    
+
 def schedule_lr(epoch):
     return init_adam_lr * (0.93 ** epoch)
 
@@ -63,7 +63,7 @@ def get_callbacks(arguments):
             monitor_name = 'val_out_seg_multiclass_dice_score'
         else:
             monitor_name = 'val_out_seg_dice_hard'
-        
+
     else:
         if "multi" in arguments.loss:
             monitor_name = 'val_multiclass_dice_score'
@@ -84,16 +84,16 @@ def get_callbacks(arguments):
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
     opt = Adam(lr=args.initial_lr, beta_1=0.99, beta_2=0.999, decay=1e-6)
-    
+
     if args.net.find('caps') != -1:
         if "multi" in args.loss:
-            metrics = {'out_seg': multiclass_dice_score}
+            metrics = {'out_seg': multiclass_dice_soft_score_without_background}
         else:
             metrics = {'out_seg': dice_hard}
-        
+
     else:
         if "multi" in args.loss:
-            metrics = [multiclass_dice_score]
+            metrics = [multiclass_dice_soft_score_without_background]
         else:
             metrics = [dice_hard]
 
@@ -136,7 +136,7 @@ def plot_training(training_history, arguments):
         else:
             ax1.plot(training_history.history['dice_hard'])
             ax1.plot(training_history.history['val_dice_hard'])
-        
+
     ax1.set_title('Dice Coefficient')
     ax1.set_ylabel('Dice', fontsize=12)
     ax1.legend(['Train', 'Val'], loc='upper left')
@@ -181,8 +181,8 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
     callbacks = get_callbacks(args)
     init_adam_lr = opt.get_config()['lr']
     #val_list = train_list
-    
-    
+
+
     if DEBUG:
         batch_gen = generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                    batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
@@ -221,8 +221,8 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
 
         plt.savefig(join("figz/", 'img_mask_fig' + '.png'),
                     format='png', bbox_inches='tight')
-        plt.close('all') 
-        
+        plt.close('all')
+
         for line in range(single_mask.shape[0]):
             for col in range(single_mask.shape[1]):
                 print(single_mask[line,col], end=" ")
@@ -235,13 +235,13 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
     history = model.fit_generator(
         generate_train_batches(args.data_root_dir, train_list, net_input_shape, net=args.net,
                                batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
-                               stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset, 
+                               stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset,
                                num_output_classes=num_output_classes),
         max_queue_size=args.max_queue_size, workers=args.workers, use_multiprocessing=args.use_multiprocessing==1,
         steps_per_epoch=args.steps_per_epoch,
         validation_data=generate_val_batches(args.data_root_dir, val_list, net_input_shape, net=args.net,
                                              batchSize=args.batch_size,  numSlices=args.slices, subSampAmt=0,
-                                             stride=5, shuff=args.shuffle_data, dataset=args.dataset, 
+                                             stride=5, shuff=args.shuffle_data, dataset=args.dataset,
                                              num_output_classes=num_output_classes),
         validation_steps=args.validation_steps, # Set validation stride larger to see more of the data.
         epochs=args.epochs,
