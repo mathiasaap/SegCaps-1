@@ -4,6 +4,7 @@ from scipy.ndimage.interpolation import map_coordinates
 import numpy as np
 import time
 from keras.preprocessing.image import *
+from postprocess import oneHot2LabelMax
 
 def elasticDeform3D(x, y, alpha, sigma, mode="constant", cval=0, is_random=False):
     if is_random is False:
@@ -98,16 +99,16 @@ def augment_random(image, label):
     #Img [x,x,slices*modalities]
     num_sm = image.shape[2]
     num_classes = label.shape[2]
-    img_and_mask = np.zeros((num_sm + num_classes, image.shape[0], image.shape[1]))
+    img_and_mask = np.zeros((image.shape[0], image.shape[1], num_sm + num_classes))
     
-    image = np.rollaxis(image, 2, 0)
-    label = np.rollaxis(label, 2, 0)
+    #image = np.rollaxis(image, 2, 0)
+    #label = np.rollaxis(label, 2, 0)
    
-    img_and_mask[:num_sm] = image
-    img_and_mask[num_sm:] = label
+    img_and_mask[:, :, :num_sm] = image
+    img_and_mask[:, :, num_sm:] = label
     
     
-    if np.random.randint(0,10) == 7:
+    if np.random.randint(0,10) == 7: 
         img_and_mask = random_rotation(img_and_mask, rg=180, row_axis=0, col_axis=1, channel_axis=2,
                                        fill_mode='constant', cval=0.)
 
@@ -131,15 +132,20 @@ def augment_random(image, label):
         img_and_mask = flip_axis(img_and_mask, axis=0)
       
     
-    image = img_and_mask[:num_sm] 
-    label = img_and_mask[num_sm:]
+    image = img_and_mask[:, :, :num_sm] 
+    label = img_and_mask[:, :, num_sm:]
     
-    image = np.rollaxis(image, 0, 3)
-    label = np.rollaxis(label, 0, 3)
+    #image = np.rollaxis(image, 0, 3)
+    #label = np.rollaxis(label, 0, 3)
     
     default_one_hot_label = [0] * num_classes
     default_one_hot_label[0] = 1
-    label[np.where(np.sum(label, axis =-1) == 0)] = default_one_hot_label
+    label[np.where(np.sum(label, axis =-1) < 0.5)] = default_one_hot_label
+    
+    label = oneHot2LabelMax(label)
+    label = np.eye(num_classes)[label]
+    
+    
     
             
     #Label [x,x,classes]
