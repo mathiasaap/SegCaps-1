@@ -45,7 +45,7 @@ from keras.preprocessing.image import *
 
 from custom_data_aug import elastic_transform, salt_pepper_noise
 
-debug = 1
+debug = 0
 
 def load_data(root, split):
     # Load the training and testing lists
@@ -278,19 +278,19 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                             plt.imshow(np.squeeze(img_batch[0, :, :, 0]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice1.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
-                            plt.imshow(np.squeeze(img_batch[0, :, :, 1]), cmap='gray')
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice2.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
-                            plt.imshow(np.squeeze(img_batch[0, :, :, 2]), cmap='gray')
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 8]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice3_main.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                             plt.imshow(np.squeeze(mask_batch[0, :, :, 0]), alpha=0.15)
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_label.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
-                            plt.imshow(np.squeeze(img_batch[0, :, :, 3]), cmap='gray')
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 12]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice4.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
-                            plt.imshow(np.squeeze(img_batch[0, :, :, 4]), cmap='gray')
+                            plt.imshow(np.squeeze(img_batch[0, :, :, 16]), cmap='gray')
                             plt.savefig(join(root_path, 'logs', 'ex{}_train_slice5.png'.format(j)), format='png', bbox_inches='tight')
                             plt.close()
                         '''elif img_batch.ndim == 5:

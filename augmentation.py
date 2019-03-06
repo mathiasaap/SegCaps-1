@@ -140,11 +140,11 @@ def augment_random(image, label):
     
     default_one_hot_label = [0] * num_classes
     default_one_hot_label[0] = 1
-    label[np.where(np.sum(label, axis =-1) < 0.5)] = default_one_hot_label
+    label[np.where(np.sum(label, axis =-1) == 0)] = default_one_hot_label
     
     label = oneHot2LabelMax(label)
     label = np.eye(num_classes)[label]
-    
+   
     
     
             
