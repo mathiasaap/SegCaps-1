@@ -54,7 +54,7 @@ def get_loss(root, split, net, recon_wei, choice):
     else:
         return loss, None
     
-def schedule_lr(epoch):
+def schedule_lr(epoch): 
     return init_adam_lr * (0.93 ** epoch)
 
 def get_callbacks(arguments):
@@ -63,7 +63,6 @@ def get_callbacks(arguments):
             monitor_name = 'val_out_seg_multiclass_dice_score'
         else:
             monitor_name = 'val_out_seg_dice_hard'
-        
     else:
         if "multi" in arguments.loss:
             monitor_name = 'val_multiclass_dice_score'
