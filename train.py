@@ -54,8 +54,8 @@ def get_loss(root, split, net, recon_wei, choice):
     else:
         return loss, None
     
-def schedule_lr(epoch): 
-    return init_adam_lr * (0.93 ** epoch)
+def schedule_lr(epoch):
+    return init_adam_lr * (0.985 ** epoch
 
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
@@ -71,14 +71,17 @@ def get_callbacks(arguments):
 
     csv_logger = CSVLogger(join(arguments.log_dir, arguments.output_name + '_log_' + arguments.time + '.csv'), separator=',')
     tb = TensorBoard(arguments.tf_log_dir, batch_size=arguments.batch_size, histogram_freq=0)
-    model_checkpoint = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_model_' + arguments.time + '.hdf5'),
-                                       monitor=monitor_name, save_best_only=False, save_weights_only=False,
+    model_checkpoint = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_validation_best_model_' + arguments.time + '.hdf5'),
+                                       monitor=monitor_name, save_best_only=True, save_weights_only=False,
                                        verbose=1, mode='max')
+    model_checkpoint_last = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_last_model_' + arguments.time + '.hdf5'),
+                                       monitor=monitor_name, save_best_only=False, save_weights_only=False,
+                                       verbose=0, mode='max')
     #lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.25, cooldown=0, patience=5,verbose=1, mode='max')
     sched_lr = LearningRateScheduler(schedule_lr, verbose=1)
     early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=25, verbose=0, mode='max')
 
-    return [model_checkpoint, csv_logger, sched_lr, early_stopper, tb]
+    return [model_checkpoint, model_checkpoint_last, csv_logger, sched_lr, early_stopper, tb]
 
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
@@ -245,6 +248,7 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
         validation_steps=args.validation_steps, # Set validation stride larger to see more of the data.
         epochs=args.epochs,
         callbacks=callbacks,
+        #validation_freq=10,
         verbose=1)
 
     # Plot the training data collected
