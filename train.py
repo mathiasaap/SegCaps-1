@@ -63,7 +63,6 @@ def get_callbacks(arguments):
             monitor_name = 'val_out_seg_multiclass_dice_score'
         else:
             monitor_name = 'val_out_seg_dice_hard'
-        
     else:
         if "multi" in arguments.loss:
             monitor_name = 'val_multiclass_dice_score'

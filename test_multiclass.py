@@ -384,7 +384,7 @@ def test(args, test_list, model_list, net_input_shape):
             row.append(np.mean(jacc_arr))
         if args.compute_assd:
             row.append(np.mean(assd_arr))
-        row.append(np.mean(surf_arr))
+        row.append(surf_arr)
         row.append(np.mean(dice2_arr))
         
         writer.writerow(row)
