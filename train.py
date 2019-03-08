@@ -55,7 +55,7 @@ def get_loss(root, split, net, recon_wei, choice):
         return loss, None
     
 def schedule_lr(epoch):
-    return init_adam_lr * (0.985 ** epoch
+    return init_adam_lr * (0.985 ** epoch)
 
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
