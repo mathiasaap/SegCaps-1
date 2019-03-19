@@ -28,7 +28,7 @@ from metrics import dc, jc, assd, jaccard
 from keras import backend as K
 K.set_image_data_format('channels_last')
 from keras.utils import print_summary
-from msd_metrics import compute_dice_coefficient, compute_surface_dice_at_tolerance, compute_surface_distances
+from msd_metrics import compute_dice_coefficient, compute_surface_dice_at_tolerance, compute_surface_distances, compute_surface_dice_at_tolerance
 
 
 from load_data_multiclass import generate_test_batches
@@ -92,6 +92,42 @@ def threshold_mask(raw_output, threshold):
 
     return raw_output
 
+def create_class_mask(pred, gt, class_idx):
+    pred_class = np.full(pred.shape, False, dtype=bool)
+    gt_class = np.full(gt.shape, False, dtype=bool)
+    pred_class[np.where(pred == class_idx)] = True
+    gt_class[np.where(gt == class_idx)] = True
+    
+    return pred_class, gt_class
+    
+
+def calc_dice_scores(pred, gt, num_classes):
+    scores = np.zeros(num_classes - 1)
+    for class_idx in range(1, num_classes):
+        pred_class, gt_class = create_class_mask(pred, gt, class_idx)
+        coeff = compute_dice_coefficient(gt_class, pred_class)
+        other_dice = dc(pred_class, gt_class)
+        print(other_dice)
+        print(coeff)
+        scores[class_idx-1] = coeff
+    return scores
+
+def calc_assd_scores(pred, gt, num_classes, spacing):
+    scores = np.zeros(num_classes - 1)
+    for class_idx in range(1, num_classes):
+        pred_class, gt_class = create_class_mask(pred, gt, class_idx)
+        score_dict = compute_surface_distances(gt_class, pred_class, spacing)
+        score = compute_surface_dice_at_tolerance(score_dict, 4)
+        assd_score = assd(pred_class, gt_class, voxelspacing=spacing, connectivity=1)
+        
+        print(score)
+        print(assd_score)
+        #other_dice = dc(pred_class, gt_class)
+        #print(other_dice)
+        #print(coeff)
+        #scores[class_idx-1] = score
+    return scores
+
 
 def test(args, test_list, model_list, net_input_shape):
     if args.weights_path == '':
@@ -146,7 +182,7 @@ def test(args, test_list, model_list, net_input_shape):
         assd_arr = np.zeros((len(test_list)))
         outfile += 'assd_'
     surf_arr = np.zeros((len(test_list)), dtype=str)
-    dice2_arr = np.zeros((len(test_list)))
+    dice2_arr = np.zeros((len(test_list), args.out_classes-1))
 
     # Testing the network
     print('Testing... This will take some time...')
@@ -245,8 +281,10 @@ def test(args, test_list, model_list, net_input_shape):
 
                 if args.out_classes == 1:
                     gtOnehot = label.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
+                    gt_label = label
                 else:
                     gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8)
+                    gt_label = label
 
                 create_activation_image(args, output_raw, gtOnehot, slice_num=output_raw.shape[0] // 2, index=i)
                 # Plot Qual Figure
@@ -345,6 +383,8 @@ def test(args, test_list, model_list, net_input_shape):
                 plt.savefig(join(fig_out_dir, img[0][:-4] + '_qual_fig' + '.png'),
                             format='png', bbox_inches='tight')
 
+                
+            output_label = oneHot2LabelMax(outputOnehot)
 
             row = [img[0][:-4]]
             if args.compute_dice:
@@ -368,11 +408,15 @@ def test(args, test_list, model_list, net_input_shape):
                    spacing = spacing[1:]
                 surf = compute_surface_distances(label, out, spacing)
                 surf_arr[i] = str(surf)
+                assd_score = calc_assd_scores(output_label, gt_label, args.out_classes, spacing)
+                print(assd_score)
                 print('\tSurface distance ' + str(surf_arr[i]))
             except:
                 print("surf failed")
                 pass
-            dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
+            #dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
+            dice2_arr[i] = calc_dice_scores(output_label, gt_label, args.out_classes)
+            
             print('\tMSD Dice: {}'.format(dice2_arr[i]))
             
             writer.writerow(row)
