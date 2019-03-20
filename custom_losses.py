@@ -31,10 +31,10 @@ def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
     return tf.reduce_mean(entropy)
 
 def multiclass_dice_loss(out, y, from_logits=False):
-    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = True)
+    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = False)
 
 def multiclass_dice_score(out, y, from_logits=False):
-    return multiclass_dice(out, y, axis=(1,2,3), from_logits = True)
+    return multiclass_dice(out, y, axis=(1,2,3), from_logits = False)
 
 def dice_soft(y_true, y_pred, loss_type='sorensen', axis=[1,2,3], smooth=1e-5, from_logits=False):
     """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity

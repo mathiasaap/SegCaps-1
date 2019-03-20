@@ -131,7 +131,7 @@ def calc_assd_scores(pred, gt, num_classes, spacing):
 
 def test(args, test_list, model_list, net_input_shape):
     if args.weights_path == '':
-        weights_path = join(args.check_dir, args.output_name + '_model_' + args.time + '.hdf5')
+        weights_path = join(args.check_dir, args.output_name + '_validation_best_model_' + args.time + '.hdf5')
     else:
         weights_path = join(args.data_root_dir, args.weights_path)
 

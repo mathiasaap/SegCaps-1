@@ -77,11 +77,11 @@ def get_callbacks(arguments):
     model_checkpoint_last = ModelCheckpoint(join(arguments.check_dir, arguments.output_name + '_last_model_' + arguments.time + '.hdf5'),
                                        monitor=monitor_name, save_best_only=False, save_weights_only=False,
                                        verbose=0, mode='max')
-    #lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.25, cooldown=0, patience=5,verbose=1, mode='max')
-    sched_lr = LearningRateScheduler(schedule_lr, verbose=1)
-    early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=25, verbose=0, mode='max')
+    lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.6, cooldown=0, patience=5, verbose=1, mode='max')
+    #sched_lr = LearningRateScheduler(schedule_lr, verbose=1)
+    early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=200, verbose=0, mode='max')
 
-    return [model_checkpoint, model_checkpoint_last, csv_logger, sched_lr, early_stopper, tb]
+    return [model_checkpoint, model_checkpoint_last, csv_logger, lr_reducer, early_stopper, tb]
 
 def compile_model(args, net_input_shape, uncomp_model):
     # Set optimizer loss and metrics
