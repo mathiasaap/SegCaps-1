@@ -25,7 +25,7 @@ from keras.utils.training_utils import multi_gpu_model
 from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard, LearningRateScheduler
 import tensorflow as tf
 
-from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss, multiclass_dice_score
+from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss_wrapper, multiclass_dice_score_wrapper
 from load_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
@@ -40,7 +40,7 @@ def get_loss(root, split, net, recon_wei, choice):
     elif choice == 'dice':
         loss = dice_loss
     elif choice == 'multi_dice':
-        loss = multiclass_dice_loss
+        loss = multiclass_dice_loss_wrapper(from_logits=net.find('caps') == -1)
     elif choice == 'w_mar':
         pos_class_weight = load_class_weights(root=root, split=split)
         loss = margin_loss(margin=0.4, downweight=0.5, pos_weight=pos_class_weight)
@@ -89,13 +89,13 @@ def compile_model(args, net_input_shape, uncomp_model):
     
     if args.net.find('caps') != -1:
         if "multi" in args.loss:
-            metrics = {'out_seg': multiclass_dice_score}
+            metrics = {'out_seg': multiclass_dice_score_wrapper(from_logits=False)}
         else:
             metrics = {'out_seg': dice_hard}
         
     else:
         if "multi" in args.loss:
-            metrics = [multiclass_dice_score]
+            metrics = [multiclass_dice_score_wrapper(from_logits=True)]
         else:
             metrics = [dice_hard]
 

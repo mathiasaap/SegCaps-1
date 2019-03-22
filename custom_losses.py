@@ -11,30 +11,29 @@ This file contains the definitions of custom loss functions not present in the d
 
 import tensorflow as tf
 
-def multiclass_dice(out, y, axis=(1,2,3,4), from_logits=False):
+def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2,3)):
     if from_logits:
-        out = tf.nn.softmax(out, axis=3)
+        y_pred = tf.nn.softmax(y_pred, axis=3)
     else:
         # Segcaps uses maximum margin dice
-        out = tf.math.minimum(y * out, 1) + ((1-y) * out)
+        y_pred = tf.math.minimum(y_true * y_pred, 1) + ((1-y_true) * y_pred)
 
     eps = 1e-5
-    
-    start_channel = 0 # Should include background when calculating dice?
-    
-    y = y[..., start_channel:]
-    out = out[..., start_channel:]
 
-    intersection = tf.reduce_sum(out * y, axis=axis)
-    union = eps + tf.reduce_sum(out*out, axis=axis) + tf.reduce_sum(y*y, axis=axis)
+    intersection = tf.reduce_sum(y_pred * y_true, axis=axis)
+    union = eps + tf.reduce_sum(y_pred*y_pred, axis=axis) + tf.reduce_sum(y_true*y_true, axis=axis)
     entropy = ( ( (2 * intersection) + eps) / (union))
     return tf.reduce_mean(entropy)
 
-def multiclass_dice_loss(out, y, from_logits=False):
-    return 1-multiclass_dice(out, y, axis=(1,2,3), from_logits = False)
+def multiclass_dice_loss_wrapper(from_logits=False):
+    def multiclass_dice_loss(y_true, y_pred):
+        return 1-multiclass_dice(y_true, y_pred, from_logits=from_logits)
+    return multiclass_dice_loss
 
-def multiclass_dice_score(out, y, from_logits=False):
-    return multiclass_dice(out, y, axis=(1,2,3), from_logits = False)
+def multiclass_dice_score_wrapper(from_logits=False):
+    def multiclass_dice_score(y_true, y_pred):
+        return multiclass_dice(y_true, y_pred, from_logits=from_logits)
+    return multiclass_dice_score
 
 def dice_soft(y_true, y_pred, loss_type='sorensen', axis=[1,2,3], smooth=1e-5, from_logits=False):
     """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity
