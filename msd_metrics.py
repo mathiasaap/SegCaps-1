@@ -452,5 +452,5 @@ def compute_dice_coefficient(mask_gt, mask_pred):
   if volume_sum == 0:
     return np.NaN
   volume_intersect = (mask_gt & mask_pred).sum()
-  return 2*volume_intersect / volume_sum
+  return float(2.0*volume_intersect) / float(volume_sum)
  

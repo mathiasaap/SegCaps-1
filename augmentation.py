@@ -108,27 +108,27 @@ def augment_random(image, label):
     img_and_mask[:, :, num_sm:] = label
     
     
-    if np.random.randint(0,10) == 7: 
+    if np.random.randint(0,20) == 7: 
         img_and_mask = random_rotation(img_and_mask, rg=180, row_axis=0, col_axis=1, channel_axis=2,
                                        fill_mode='constant', cval=0.)
 
 
-    if np.random.randint(0, 10) == 7:
+    if np.random.randint(0, 20) == 7:
         img_and_mask = random_shift(img_and_mask, wrg=0.2, hrg=0.2, row_axis=0, col_axis=1, channel_axis=2,
                                     fill_mode='constant', cval=0.)
 
-    if np.random.randint(0, 10) == 7:
+    if np.random.randint(0, 20) == 7:
         img_and_mask = random_shear(img_and_mask, intensity=16, row_axis=0, col_axis=1, channel_axis=2,
                      fill_mode='constant', cval=0.)
 
-    if np.random.randint(0, 10) == 7:
+    if np.random.randint(0, 20) == 7:
         img_and_mask = random_zoom(img_and_mask, zoom_range=(0.8, 0.8), row_axis=0, col_axis=1, channel_axis=2,
                      fill_mode='constant', cval=0.)
 
-    if np.random.randint(0, 10) == 7:
+    if np.random.randint(0, 20) == 7:
         img_and_mask = flip_axis(img_and_mask, axis=1)
 
-    if np.random.randint(0, 10) == 7:
+    if np.random.randint(0, 20) == 7:
         img_and_mask = flip_axis(img_and_mask, axis=0)
       
     
