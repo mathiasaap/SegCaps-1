@@ -195,6 +195,7 @@ def test(args, test_list, model_list, net_input_shape):
         row = ["Scan Name"]
         for i in range(1,args.out_classes):
             row.append("Dice_{}".format(i))
+        dice_writer.writerow(row)
 
         row = ['Scan Name']
         if args.compute_dice:
@@ -431,6 +432,14 @@ def test(args, test_list, model_list, net_input_shape):
             
             writer.writerow(row)
 
+            
+        dice_row = ['Average Scores']
+        avgs = np.mean(dice2_arr, axis=0)
+        for avg in avgs:
+            dice_row.append(avg)
+        dice_writer.writerow(dice_row)
+            
+        
         row = ['Average Scores']
         if args.compute_dice:
             row.append(np.mean(dice_arr))
