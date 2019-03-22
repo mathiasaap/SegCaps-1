@@ -185,14 +185,11 @@ one_hot_max = 1.0 # Value of positive class in one hot
 @threadsafe_generator
 def generate_train_batches(root_path, train_list, net_input_shape, net, batchSize=1, numSlices=1, subSampAmt=-1,
                            stride=1, downSampAmt=1, shuff=1, aug_data=1, dataset = 'brats', num_output_classes=2):
-    # Create placeholders for training
-    # (img_shape[1], img_shape[2], args.slices)
     print('train ' + str(dataset))
     modalities = net_input_shape[2] // numSlices
     input_slices = numSlices
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     mask_shape = [net_input_shape[0], net_input_shape[1], num_output_classes]
-    #print(mask_shape)
     mask_batch = np.zeros((np.concatenate(((batchSize,), mask_shape))), dtype=np.float32)
 
     if dataset == 'brats':
@@ -270,7 +267,6 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
                 else:
                     print('\nError this function currently only supports 2D and 3D data.')
                     exit(0)
-
                 if aug_data:
                     img_batch[count], mask_batch[count] = augment_random(img_batch[count], mask_batch[count])
                 count += 1
@@ -332,17 +328,21 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
             #if aug_data:
             #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
             #                                                                  mask_batch[:count,...])
-            if net.find('caps') != -1: #TODO: This is not correct for several slices
+            if net.find('caps') != -1: 
+                sub_img_batch = img_batch[:count, ...]
+                sub_mask_batch = mask_batch[:count, ...]
+                
                 mid_slice = input_slices // 2
                 start_index = mid_slice * modalities
-                img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
+                img_batch_mid_slice = sub_img_batch[:, :, :, start_index:start_index+modalities]
 
-                mask_batch_masked = oneHot2LabelMax(mask_batch)
+                mask_batch_masked = oneHot2LabelMax(sub_mask_batch)
                 mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
                 mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
                 mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
-                yield ([img_batch[:count, ...], 1 - mask_batch_masked[:count, ...]],
-                       [mask_batch[:count, ...], mask_batch_masked_expand[:count, ...] * img_batch_mid_slice[:count, ...]])
+
+                masked_img = mask_batch_masked_expand*img_batch_mid_slice
+                yield ([sub_img_batch, mask_batch_masked], [sub_mask_batch, masked_img])
             else:
                 yield (img_batch[:count,...], mask_batch[:count,...])
 
@@ -433,7 +433,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 count += 1
                 if count % batchSize == 0:
                     count = 0
-                    if net.find('caps') != -1: # if the network is capsule/segcaps structure
+                    if net.find('caps') != -1: # if the network is capsule/segcaps structure                        
                         mid_slice = input_slices // 2
                         start_index = mid_slice * modalities
                         img_batch_mid_slice = img_batch[:, :, :, start_index:start_index+modalities]
@@ -444,7 +444,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                         mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
 
                         masked_img = mask_batch_masked_expand*img_batch_mid_slice
-                        yield ([img_batch, 1 - mask_batch_masked], [mask_batch, masked_img])
+                        yield ([img_batch, mask_batch_masked], [mask_batch, masked_img])
                     else:
                         yield (img_batch, mask_batch)
 
@@ -452,9 +452,21 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
             #if aug_data:
             #    img_batch[:count,...], mask_batch[:count,...] = augmentImages(img_batch[:count,...],
             #                                                                  mask_batch[:count,...])
-            if net.find('caps') != -1: #TODO: This is not correct for several slices
-                yield ([img_batch[:count, ...], mask_batch[:count, ...]],
-                       [mask_batch[:count, ...], mask_batch[:count, ...] * img_batch[:count, ...]])
+            if net.find('caps') != -1: 
+                sub_img_batch = img_batch[:count, ...]
+                sub_mask_batch = mask_batch[:count, ...]
+                
+                mid_slice = input_slices // 2
+                start_index = mid_slice * modalities
+                img_batch_mid_slice = sub_img_batch[:, :, :, start_index:start_index+modalities]
+
+                mask_batch_masked = oneHot2LabelMax(sub_mask_batch)
+                mask_batch_masked[mask_batch_masked > 0.5] = 1.0 # Setting all other classes than background to mask
+                mask_batch_masked = np.expand_dims(mask_batch_masked, axis=-1)
+                mask_batch_masked_expand = np.repeat(mask_batch_masked, modalities, axis=-1)
+
+                masked_img = mask_batch_masked_expand*img_batch_mid_slice
+                yield ([sub_img_batch, mask_batch_masked], [sub_mask_batch, masked_img])
             else:
                 yield (img_batch[:count,...], mask_batch[:count,...])
 
