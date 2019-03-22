@@ -189,6 +189,12 @@ def test(args, test_list, model_list, net_input_shape):
 
     with open(join(output_dir, args.save_prefix + outfile + 'scores.csv'), 'wb') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        
+        dice_results_csv = open(join(output_dir, args.save_prefix + outfile + 'dice_scores.csv'), 'wb')
+        dice_writer = csv.writer(dice_results_csv, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+        row = ["Scan Name"]
+        for i in range(1,args.out_classes):
+            row.append("Dice_{}".format(i))
 
         row = ['Scan Name']
         if args.compute_dice:
@@ -387,6 +393,7 @@ def test(args, test_list, model_list, net_input_shape):
             output_label = oneHot2LabelMax(outputOnehot)
 
             row = [img[0][:-4]]
+            dice_row = [img[0][:-4]]
             if args.compute_dice:
                 print('Computing Dice')
                 dice_arr[i] = dc(outputOnehot, gtOnehot)
@@ -416,6 +423,9 @@ def test(args, test_list, model_list, net_input_shape):
                 pass
             #dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
             dice2_arr[i] = calc_dice_scores(output_label, gt_label, args.out_classes)
+            for score in dice2_arr[i]:
+                dice_row.append(score)
+            dice_writer.writerow(dice_row)
             
             print('\tMSD Dice: {}'.format(dice2_arr[i]))
             
@@ -432,5 +442,7 @@ def test(args, test_list, model_list, net_input_shape):
         row.append(np.mean(dice2_arr))
         
         writer.writerow(row)
+        dice_results_csv.close()
+      
 
     print('Done.')
