@@ -35,7 +35,10 @@ from load_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
-    f, ax = plt.subplots(2, raw_data.shape[3]+1, figsize=(15, 15))
+    if raw_data.shape[3] == 1:
+        f, ax = plt.subplots(2, raw_data.shape[3]+1, figsize=(15, 15))
+    else:
+        f, ax = plt.subplots(2, raw_data.shape[3], figsize=(15, 15))
 
     print(raw_data.shape)
     names = ['Class 1', 'Class 2', 'Class 3', 'Class 4']
@@ -107,8 +110,8 @@ def calc_dice_scores(pred, gt, num_classes):
         pred_class, gt_class = create_class_mask(pred, gt, class_idx)
         coeff = compute_dice_coefficient(gt_class, pred_class)
         other_dice = dc(pred_class, gt_class)
-        print(other_dice)
-        print(coeff)
+        #print(other_dice)
+        print("Dice value: {}".format(coeff))
         scores[class_idx-1] = coeff
     return scores
 
