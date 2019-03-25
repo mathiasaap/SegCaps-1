@@ -31,6 +31,9 @@ def create_model(args, input_shape):
             from capsnet import CapsNetR3
             model_list = CapsNetR3(input_shape, args.modalities, num_classes)
             return model_list
+        elif args.net == 'emsegcaps':
+            from emsegcaps import SegCapsEM
+            model_list = SegCapsEM(input_shape, args.modalities, num_classes)
         elif args.net == 'capsbasic':
             from capsnet import CapsNetBasic
             model_list = CapsNetBasic(input_shape)
