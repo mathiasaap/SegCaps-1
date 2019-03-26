@@ -52,6 +52,7 @@ def main(args):
 
     # Create the model for training/testing/manipulation
     model_list = create_model(args=args, input_shape=net_input_shape)
+    print(model_list)
     print_summary(model=model_list[0], positions=[.38, .65, .75, 1.])
 
     args.output_name = 'split-' + str(args.split_num) + '_batch-' + str(args.batch_size) + \
@@ -116,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_splits', type=int, default=2,
                         help='Number of training splits to create.')
     parser.add_argument('--net', type=str.lower, default='segcapsr3',
-                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'emsegcaps', 'unet', 'tiramisu', 'isensee', 'binarycaps'],
+                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'emseg', 'unet', 'tiramisu', 'isensee', 'binarycaps'],
                         help='Choose your network.')
     parser.add_argument('--train', type=int, default=1, choices=[0,1],
                         help='Set to 1 to enable training.')
