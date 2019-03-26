@@ -31,11 +31,11 @@ from load_brats import convert_brats_data_to_numpy
 from load_hepatic import convert_hepatic_data_to_numpy
 from load_colon import convert_colon_data_to_numpy
 from load_pancreas import convert_pancreas_data_to_numpy
+from load_hippocampus import convert_hippo_data_to_numpy
 from postprocess import oneHot2LabelMax
 from augmentation import augment_random, elasticDeform2D, elasticDeform3D
 
 from scipy import linalg
-
 
 import matplotlib
 matplotlib.use('Agg')
@@ -175,6 +175,8 @@ def get_np_converter(dataset):
         return convert_colon_data_to_numpy
     elif dataset == 'pancreas':
         return convert_pancreas_data_to_numpy
+    elif dataset == 'hippocampus':
+        return convert_hippo_data_to_numpy
     else:
         return convert_spleen_data_to_numpy
         
@@ -199,6 +201,14 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
         raw_x_shape = 240
         raw_y_shape = 240
+    elif dataset == 'hippocampus':
+        np_converter = convert_hippo_data_to_numpy
+        frame_pixels_0 = 0
+        frame_pixels_1 = -1
+        empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+        raw_x_shape = 35
+        raw_y_shape = 35
+        
     elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0

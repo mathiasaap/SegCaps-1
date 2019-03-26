@@ -26,9 +26,22 @@ def SegCapsEM(input_shape, modalities=1, n_class=2):
                                     num_capsule=2, 
                                     strides=1, 
                                     padding='same',
-                                    name='out_seg')(primary_caps)
+                                    name='conv_caps_1')(primary_caps)
+    conv_caps_2 = ConvCapsuleLayer(kernel_size=3, 
+                                num_capsule=4, 
+                                strides=1, 
+                                padding='same',
+                                name='conv_caps_2')(conv_caps_1)
+    conv_caps_n = ConvCapsuleLayer(kernel_size=3, 
+                            num_capsule=2, 
+                            strides=1, 
+                            padding='same',
+                            name='conv_caps_n')(conv_caps_2)
+
     
-    out_caps = OutputCapsuleLayer(out_classes=n_class)(conv_caps_1)
+    
+    out_caps = OutputCapsuleLayer(out_classes=n_class,
+                                  name='out_seg')(conv_caps_n)
                                     
                              
     train_model = models.Model(inputs=x, outputs=out_caps)

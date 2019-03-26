@@ -11,7 +11,7 @@ This file contains the definitions of custom loss functions not present in the d
 
 import tensorflow as tf
 
-def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2,3)):
+def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2)):
     if from_logits:
         y_pred = tf.nn.softmax(y_pred, axis=3)
     else:
