@@ -49,7 +49,9 @@ def main(args):
     if args.dataset == 'brats':
         args.modalities = 4
         net_input_shape = (256, 256, args.slices*args.modalities)
-
+    #if args.dataset == 'hippocampus':
+    #    args.modalities = 1
+    #    net_input_shape = (35, 35, args.slices*args.modalities)
     # Create the model for training/testing/manipulation
     model_list = create_model(args=args, input_shape=net_input_shape)
     print(model_list)

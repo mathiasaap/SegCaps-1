@@ -142,6 +142,8 @@ def test(args, test_list, model_list, net_input_shape):
         RESOLUTION = 240
     elif args.dataset == 'heart':
         RESOLUTION = 320
+    elif args.dataset == 'hippocampus':
+        RESOLUTION = 32
     else:
         RESOLUTION = 512
 
@@ -256,6 +258,8 @@ def test(args, test_list, model_list, net_input_shape):
             if args.out_classes == 1:
                 outputOnehot = out.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
             else:
+                if args.dataset == 'hippocampus':
+                    out[np.where(out>(args.out_classes-1)) ] = 1
                 outputOnehot = np.eye(args.out_classes)[out].astype(np.uint8)
 
 
@@ -293,6 +297,8 @@ def test(args, test_list, model_list, net_input_shape):
                     gtOnehot = label.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
                     gt_label = label
                 else:
+                    if args.dataset == 'hippocampus':
+                        label[np.where(label>(args.out_classes-1)) ] = 1
                     gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8)
                     gt_label = label
 

@@ -201,15 +201,15 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset == 'hippocampus':
-        np_converter = convert_hippo_data_to_numpy
-        frame_pixels_0 = 0
-        frame_pixels_1 = -1
-        empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
-        raw_x_shape = 35
-        raw_y_shape = 35
+    #elif dataset == 'hippocampus':
+    #    np_converter = convert_hippo_data_to_numpy
+    #    frame_pixels_0 = 0
+    #    frame_pixels_1 = -1
+    #    empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
+    #    raw_x_shape = 35
+    #    raw_y_shape = 35
         
-    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas']:
+    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
@@ -374,7 +374,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas']:
+    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
@@ -498,7 +498,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         frame_pixels_1 = -8
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas']:
+    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]

@@ -3,7 +3,7 @@ import tensorflow as tf
 from keras import initializers, layers
 from keras.utils.conv_utils import conv_output_length, deconv_length
 import numpy as np
-from keras.layers import Input, concatenate, Conv2D, SpatialDropout2D, UpSampling2D, LeakyReLU, Add, Lambda
+from keras.layers import Conv2D, SpatialDropout2D, UpSampling2D, LeakyReLU, Add, Lambda
 
 
 def kernel_tile(input, kernel=3, stride=1):
@@ -42,25 +42,49 @@ class PrimaryCapsLayer(layers.Layer):
                                       " filters]"
         self.input_height = input_shape[1]
         self.input_width = input_shape[2]
+        self.input_filters = input_shape[3]
+        
+        self.W_pose = self.add_weight(shape=[self.kernel_size, self.kernel_size,
+                         self.input_filters, self.num_capsule*16],
+                         initializer=self.kernel_initializer,
+                         name='W_pose')
+        self.W_activation = self.add_weight(shape=[self.kernel_size, self.kernel_size,
+                         self.input_filters, self.num_capsule],
+                         initializer=self.kernel_initializer,
+                         name='W_activation')
 
         self.built = True
 
     def call(self, input_tensor, training=None):
         batch_size, height, width = 1, self.input_height, self.input_width
         
-        pose = Conv2D(filters=self.num_capsule*16, 
+        """pose = Conv2D(filters=self.num_capsule*16, 
                       kernel_size=1, 
                       strides=1, 
                       kernel_initializer=self.kernel_initializer, 
                       padding=self.padding,
-                      activation=None)(input_tensor)
- 
+                      activation=None)(input_tensor)"""
+        
+        pose = K.conv2d(input_tensor, 
+                        self.W_pose, 
+                        (self.strides, self.strides),
+                        padding=self.padding,
+                        data_format='channels_last')
+        
+        activations = K.conv2d(input_tensor, 
+                self.W_activation, 
+                (self.strides, self.strides),
+                padding=self.padding, 
+                data_format='channels_last')
+        activations = tf.nn.sigmoid(activations)
+        """
         activations = Conv2D(filters=self.num_capsule, 
               kernel_size=1, 
               strides=1, 
               kernel_initializer=self.kernel_initializer, 
               padding=self.padding,
               activation='sigmoid')(input_tensor)
+        """
     
         pose = tf.reshape(pose, shape=[-1, height, width, self.num_capsule, 16])
         activations = tf.reshape(activations, shape=[-1, height, width, self.num_capsule, 1])
@@ -104,8 +128,6 @@ class ConvCapsuleLayer(layers.Layer):
         self.input_height = input_shape[1]
         self.input_width = input_shape[2]
         self.input_num_capsule = input_shape[3] // 17
-        print("Input shape: {}".format(input_shape))
-        print("Num input capsules: {}".format(self.input_num_capsule))
 
         # Transform matrix
         self.W = self.add_weight(shape=[1, self.kernel_size * self.kernel_size * self.input_num_capsule, self.num_capsule, 4, 4],
@@ -120,6 +142,63 @@ class ConvCapsuleLayer(layers.Layer):
     def call(self, input_tensor, training=None):
         input_tensor = kernel_tile(input_tensor, kernel=self.kernel_size, stride=self.strides)
         batch, height, width, _, _ = input_tensor.get_shape()
+        output = tf.reshape(input_tensor, shape=[1 * height * width, self.kernel_size * self.kernel_size * self.input_num_capsule, 17])
+        
+        activation = tf.reshape(output[:, :, 16], shape=[
+                                    1 * height * width, self.kernel_size * self.kernel_size * self.input_num_capsule, 1])
+        
+        pre_transform = tf.reshape(output[:, :, :16], shape=[-1, self.kernel_size * self.kernel_size * self.input_num_capsule, 1, 4, 4])
+        
+        w = tf.tile(self.W, [pre_transform.get_shape()[0], 1, 1, 1, 1])
+        pre_transform = tf.tile(pre_transform, [1, 1, self.num_capsule, 1, 1])
+        votes = tf.matmul(pre_transform, w)
+        votes = tf.reshape(votes, [-1, self.kernel_size * self.kernel_size * self.input_num_capsule, self.num_capsule, 16])
+        miu, activation, _ = em_routing(self, votes, activation, self.num_capsule, routings=self.routings)
+        pose = tf.reshape(miu, shape=[1, height, width, self.num_capsule, 16])
+        activation = tf.reshape(activation, shape=[1,height, width, self.num_capsule, 1])
+        output = tf.reshape(tf.concat([pose, activation], axis=4), [1, height, width, -1])
+        return output
+    
+    
+class DeconvCapsuleLayer(layers.Layer):
+    def __init__(self, kernel_size, num_capsule, strides=1, padding='same', routings=3, upsample_type='nearest',
+                 kernel_initializer='he_normal', **kwargs):
+        super(DeconvCapsuleLayer, self).__init__(**kwargs)
+        self.kernel_size = kernel_size
+        self.num_capsule = num_capsule
+        self.strides = strides
+        self.padding = padding
+        self.routings = routings
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.batch_size=1
+        self.upsample_type = upsample_type
+
+    def build(self, input_shape):
+        assert len(input_shape) == 4, "The input Tensor should have shape=[None, input_height, input_width," \
+                                      " input_num_capsule, 17]"
+        self.input_height = input_shape[1]
+        self.input_width = input_shape[2]
+        self.input_num_capsule = input_shape[3] // 17
+
+        # Transform matrix
+        self.W = self.add_weight(shape=[1, self.kernel_size * self.kernel_size * self.input_num_capsule, self.num_capsule, 4, 4],
+                                 initializer=self.kernel_initializer,
+                                 name='W')
+
+
+        self.built = True
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1]*self.strides, input_shape[2]*self.strides, self.num_capsule*17)
+
+    def call(self, input_tensor, training=None):
+        batch, height, width, _ = input_tensor.get_shape()
+        if self.upsample_type == 'nearest':
+            input_tensor = UpSampling2D(self.strides)(input_tensor)
+        else:
+            raise NotImplementedError("Upsample type {} is not implemented.".format(self.upsample_type))
+            
+        input_tensor = kernel_tile(input_tensor, kernel=self.kernel_size, stride=1)
+        batch, height, width, _, _ = input_tensor.get_shape()
         print(batch)
         output = tf.reshape(input_tensor, shape=[1 * height * width, self.kernel_size * self.kernel_size * self.input_num_capsule, 17])
         
@@ -128,19 +207,14 @@ class ConvCapsuleLayer(layers.Layer):
         
         pre_transform = tf.reshape(output[:, :, :16], shape=[-1, self.kernel_size * self.kernel_size * self.input_num_capsule, 1, 4, 4])
         
-        print("pre_transform shape {}".format(pre_transform.get_shape()))
         w = tf.tile(self.W, [pre_transform.get_shape()[0], 1, 1, 1, 1])
         pre_transform = tf.tile(pre_transform, [1, 1, self.num_capsule, 1, 1])
         votes = tf.matmul(pre_transform, w)
         votes = tf.reshape(votes, [-1, self.kernel_size * self.kernel_size * self.input_num_capsule, self.num_capsule, 16])
-        print("Votes shape {}".format(votes.get_shape()))
         miu, activation, _ = em_routing(self, votes, activation, self.num_capsule, routings=self.routings)
-        print("Mu shape {}".format(miu.get_shape()))
         pose = tf.reshape(miu, shape=[1, height, width, self.num_capsule, 16])
         activation = tf.reshape(activation, shape=[1,height, width, self.num_capsule, 1])
         output = tf.reshape(tf.concat([pose, activation], axis=4), [1, height, width, -1])
-        print("out_shape")
-        print(output.get_shape())
         return output
     
     
@@ -174,13 +248,12 @@ def em_routing(capslayer, votes, activation, caps_num_c, routings, regularizer=N
     batch_size = int(votes.get_shape()[0])
     caps_num_i = int(activation.get_shape()[1])
     n_channels = int(votes.get_shape()[-1])
-    epsilon = 0.00001
-    ac_lambda0 = 1
+    epsilon = 1e-9
+    ac_lambda0 = 0.01
 
     sigma_square = []
     miu = []
     activation_out = []
-    print(batch_size)
     beta_v = capslayer.add_weight(shape=[caps_num_c, n_channels], dtype=tf.float32,
                                  initializer=tf.constant_initializer(0.0),
                                  regularizer=regularizer,

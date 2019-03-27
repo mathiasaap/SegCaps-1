@@ -21,8 +21,8 @@ def convert_hippo_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
     except:
         pass
 
-    img_min = 2
-    img_max = 139.0
+    #img_min = 2
+    #img_max = 139.0
     mean = 0 #np.array([170.25972919418757])
     std = 1 #np.array([257.885508476468])
 
@@ -39,11 +39,14 @@ def convert_hippo_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
         img = sitk.GetArrayFromImage(itk_img)
 
         img = img.astype(np.float32)
+        print(img.shape)
         img = np.rollaxis(img, 0, 3)
         print(img.shape)
 
         #img -= mean
         #img /= std
+        img_max = np.max(img)
+        img_min = np.min(img)
 
         img[img > img_max] = img_max
         img[img < img_min] = img_min
@@ -66,7 +69,7 @@ def convert_hippo_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
             #print(label[150])
 
             if num_classes == 1:
-                masks = label.reshape(35,35,-1,1)
+                masks = label.reshape(32,32,-1,1)
             else:
                 masks = np.eye(num_classes)[label] 
             print("Created mask shape: {}".format(masks.shape))
