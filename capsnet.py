@@ -152,7 +152,6 @@ def CapsNetR3(input_shape, modalities=1, n_class=2):
     capsules_base = 2
     filter_multiplier = 1
     atoms_base = 16*filter_multiplier
-    
     x = layers.Input(shape=input_shape)
 
     # Layer 1: Just a conventional Conv2D layer
@@ -218,16 +217,12 @@ def CapsNetR3(input_shape, modalities=1, n_class=2):
 
     # Skip connection
     up_3 = layers.Concatenate(axis=-2, name='up_3')([deconv_cap_3_1, conv1_reshaped])
-
-    # Layer 4: Convolutional Capsule: 1x1
-    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=1, num_atoms=atoms_base, strides=1, padding='same',
-                                routings=3, name='seg_caps')(up_3)
     
-    seg_caps_classifier = ConvCapsuleLayer(kernel_size=1, num_capsule=n_class, num_atoms=atoms_base, strides=1, padding='same',
-                                routings=3, name='seg_caps_classifier')(seg_caps)
+    seg_caps = ConvCapsuleLayer(kernel_size=1, num_capsule=n_class, num_atoms=atoms_base, strides=1, padding='same',
+                                routings=3, name='seg_caps')(up_3)
 
     # Layer 4: This is an auxiliary layer to replace each capsule with its length. Just to match the true label's shape.
-    out_seg = Length(num_classes=n_class, seg=True, name='out_seg')(seg_caps_classifier)
+    out_seg = Length(num_classes=n_class, seg=True, name='out_seg')(seg_caps)
     print(out_seg.shape)
     #assert False, "Out seg shape"
     #out_seg = seg_caps
@@ -243,11 +238,8 @@ def CapsNetR3(input_shape, modalities=1, n_class=2):
     masked = Mask()(seg_caps)  # Mask using the capsule with maximal length. For prediction
 
     def shared_decoder(mask_layer):
-        #print(H.value, W.value, A.value*4)
-        #mask_layer = mask_layer[:,:,3]
-        print(mask_layer.shape)
-        print((H.value, W.value, modalities*A.value))
-        recon_remove_dim = layers.Reshape((H.value, W.value, A.value))(mask_layer)
+
+        recon_remove_dim = layers.Reshape((input_shape[0], input_shape[1], n_class*atoms_base))(mask_layer)
 
         recon_1 = layers.Conv2D(filters=64, kernel_size=1, padding='same', kernel_initializer='he_normal',
                                 activation='relu', name='recon_1')(recon_remove_dim)

@@ -3,3 +3,5 @@
 **/saved_models/
 **/*.py~
 
+*.out
+*.slurm
