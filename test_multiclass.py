@@ -36,7 +36,7 @@ from postprocess import oneHot2LabelMin, oneHot2LabelMax
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
     if raw_data.shape[3] == 1:
-        f, ax = plt.subplots(2, raw_data.shape[3]+1, figsize=(15, 15))
+        f, ax = plt.subplots(2, 2, figsize=(15, 15))
     else:
         f, ax = plt.subplots(2, raw_data.shape[3], figsize=(15, 15))
 
@@ -51,7 +51,7 @@ def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
         ax[0,j].axis('off')
 
     for j in range(raw_data.shape[3]):
-        ax[1,j].imshow(label[slice_num, :, :, j], alpha=1, cmap='Reds')
+        ax[1,j].imshow(label[slice_num, :, :, j], alpha=1, cmap='Reds', vmin=0, vmax=1)
         ax[1,j].set_title(names[j])
         ax[1,j].axis('off')
 
@@ -63,21 +63,25 @@ def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
                 format='png', bbox_inches='tight')
     plt.close('all')
 
-def create_recon_image(args, recon, img, i=0):
+def create_recon_image(args, recon, img, label, i=0):
     cols = recon.shape[3]
     if cols == 1:
         cols = 2
     f, ax = plt.subplots(2, cols, figsize=(15, 15))
 
     slice_num = recon.shape[0] // 2
+    
+    mi = np.min(recon[slice_num])
+    ma = np.max(recon[slice_num])
+    
     for j in range(recon.shape[3]):
         recon_mod = recon[slice_num, :, :, j]
-        ax[0,j].imshow(recon_mod, alpha=1, cmap='Reds')
+        ax[0,j].imshow(recon_mod, alpha=1, cmap='Reds', vmin=mi, vmax=ma)
         ax[0,j].axis('off')
 
     print('recon shape' + str(img.shape))
     for j in range(recon.shape[3]):
-        ax[1,j].imshow(img[slice_num, :, :], alpha=1, cmap='Reds')
+        ax[1,j].imshow(label[slice_num, :, :, j]*img[slice_num, :, :], alpha=1, cmap='Reds', vmin=mi, vmax=ma)
         ax[1,j].axis('off')
 
     fig = plt.gcf()
@@ -273,7 +277,7 @@ def test(args, test_list, model_list, net_input_shape):
             output_mask.CopyInformation(slice_img)
 
             if args.net.find('caps') != -1:
-                create_recon_image(args, recon, img_data, i=i)
+                create_recon_image(args, recon, img_data, gtOnehot, i=i)
 
 
             #output_img.CopyInformation(sitk_img)
@@ -310,11 +314,10 @@ def test(args, test_list, model_list, net_input_shape):
                     img_data = img_data[3]
                     #img_data = img_data[:,:,:,3]
 
+                # Prediction plots
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
-
                 for class_num in range(outputOnehot.shape[3]):
                     ax[0,0].imshow(outputOnehot[num_slices // 3, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
-
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
@@ -327,27 +330,28 @@ def test(args, test_list, model_list, net_input_shape):
                 ax[0,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
                 for class_num in range(outputOnehot.shape[3]):
                     ax[0,2].imshow(outputOnehot[num_slices // 2 + num_slices // 4, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
-                #ax[0,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.2,cmap='Reds')
                 ax[0,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[0,2].axis('off')
 
-
-                #print(gt_data[num_slices // 3, :, :])
+                # Ground truth plots
                 ax[1,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
                 ax[1,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
-                ax[1,0].imshow(gt_data[num_slices // 3, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=args.out_classes-1)
+                for class_num in range(gtOnehot.shape[3]):
+                    ax[1,0].imshow(gtOnehot[num_slices // 3, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
                 ax[1,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
-                ax[1,1].imshow(gt_data[num_slices // 2, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=args.out_classes-1)
+                for class_num in range(gtOnehot.shape[3]):
+                    ax[1,1].imshow(gtOnehot[num_slices // 2, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
-                ax[1,2].imshow(gt_data[num_slices // 2 + num_slices // 4, :, :], alpha=0.8, cmap='Reds', vmin=0, vmax=args.out_classes-1)
                 ax[1,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
+                for class_num in range(gtOnehot.shape[3]):
+                    ax[1,2].imshow(gtOnehot[num_slices // 2 + num_slices // 4, :, :, class_num], alpha=0.5, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,2].axis('off')
 
                 fig = plt.gcf()
