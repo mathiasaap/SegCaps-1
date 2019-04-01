@@ -23,8 +23,6 @@ def convert_heart_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
 
     heart_min = 0
     heart_max = 2196.0
-    mean = 0 #np.array([170.25972919418757])
-    std = 1 #np.array([257.885508476468])
 
     if not overwrite:
         try:

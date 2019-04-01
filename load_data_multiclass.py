@@ -86,6 +86,31 @@ def compute_class_weights(root, train_data_list):
 
     return neg/pos
 
+def compute_multiclass_weights(root, train_data_list, num_classes):
+    '''
+        We want to weight the the positive pixels by the ratio of negative to positive.
+        Three scenarios:
+            1. Equal classes. neg/pos ~ 1. Standard binary cross-entropy
+            2. Many more negative examples. The network will learn to always output negative. In this way we want to
+               increase the punishment for getting a positive wrong that way it will want to put positive more
+            3. Many more positive examples. We weight the positive value less so that negatives have a chance.
+    '''
+    pos = np.array([0.0 for _ in range(num_classes)])
+
+    for img_name in tqdm(train_data_list):
+        img = sitk.GetArrayFromImage(sitk.ReadImage(join(root, 'masks', img_name[0])))
+        for slic in img:
+            if not np.any(slic):
+                continue
+            else:
+                for i in range(num_classes):
+                    p = np.count_nonzero(slic==i)
+                    pos[i] += p
+                    
+    weights = 1 - (pos / np.sum(pos))
+
+    return weights
+
 def load_class_weights(root, split):
     class_weight_filename = join(root, 'split_lists', 'train_split_' + str(split) + '_class_weights.npy')
     try:
@@ -95,6 +120,19 @@ def load_class_weights(root, split):
               'some time.'.format(class_weight_filename))
         train_data_list, _, _ = load_data(root, str(split))
         value = compute_class_weights(root, train_data_list)
+        np.save(class_weight_filename,value)
+        print('\nFinished computing class weights. This value has been saved for this training split.')
+        return value
+    
+def load_multiclass_weights(root, split, num_classes):
+    class_weight_filename = join(root, 'split_lists', 'train_split_' + str(split) + '_class_weights.npy')
+    try:
+        return np.load(class_weight_filename)
+    except:
+        print('\nClass weight file {} not found.\nComputing class weights now. This may take '
+              'some time.'.format(class_weight_filename))
+        train_data_list, _, _ = load_data(root, str(split))
+        value = compute_multiclass_weights(root, train_data_list, num_classes)
         np.save(class_weight_filename,value)
         print('\nFinished computing class weights. This value has been saved for this training split.')
         return value
