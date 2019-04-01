@@ -63,12 +63,12 @@ def schedule_lr(epoch):
 
 def get_callbacks(arguments):
     if arguments.net.find('caps') != -1:
-        if "multi" in arguments.loss:
+        if arguments.out_classes > 1:
             monitor_name = 'val_out_seg_multiclass_dice_score'
         else:
             monitor_name = 'val_out_seg_dice_hard'
     else:
-        if "multi" in arguments.loss:
+        if arguments.out_classes > 1:
             monitor_name = 'val_multiclass_dice_score'
         else:
             monitor_name = 'val_dice_hard'
