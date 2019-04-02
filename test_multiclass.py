@@ -276,9 +276,6 @@ def test(args, test_list, model_list, net_input_shape):
             output_img.CopyInformation(slice_img)
             output_mask.CopyInformation(slice_img)
 
-            if args.net.find('caps') != -1:
-                create_recon_image(args, recon, img_data, gtOnehot, i=i)
-
 
             #output_img.CopyInformation(sitk_img)
             #output_mask.CopyInformation(sitk_img)
@@ -300,6 +297,9 @@ def test(args, test_list, model_list, net_input_shape):
                     gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8)
                     gt_label = label
 
+                if args.net.find('caps') != -1:
+                    create_recon_image(args, recon, img_data, gtOnehot, i=i)
+                
                 create_activation_image(args, output_raw, gtOnehot, slice_num=output_raw.shape[0] // 2, index=i)
                 # Plot Qual Figure
                 print('Creating Qualitative Figure for Quick Reference')
