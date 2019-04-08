@@ -108,7 +108,7 @@ def compute_multiclass_weights(root, train_data_list, num_classes):
                     pos[i] += p
                     
     weights = 1 - (pos / np.sum(pos))
-
+    
     return weights
 
 def load_class_weights(root, split):
