@@ -26,15 +26,19 @@ from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLRO
 import tensorflow as tf
 
 from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss_wrapper, multiclass_dice_score_wrapper, spread_loss_wrapper
-from load_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
+from load_data_multiclass import load_multiclass_weights, load_class_weights, generate_train_batches, generate_val_batches
 
 
 init_adam_lr = 1
 
-def get_loss(root, split, net, recon_wei, choice, margin_value):
+def get_loss(root, split, net, recon_wei, choice, num_classes, margin_value):
     if choice == 'w_bce':
-        pos_class_weight = load_class_weights(root=root, split=split)
-        loss = weighted_binary_crossentropy_loss(pos_class_weight)
+        if num_classes == 1:
+            pos_class_weight = load_class_weights(root=root, split=split)
+            loss = weighted_binary_crossentropy_loss(pos_class_weight)
+        else:
+            pos_class_weight = load_multiclass_weights(root=root, split=split, num_classes=num_classes)
+            loss = weighted_binary_crossentropy_loss(pos_class_weight)
     elif choice == 'bce':
         loss = 'binary_crossentropy'
     elif choice == 'dice':
@@ -67,12 +71,12 @@ def update_margin_wrapper(total_epochs, margin_start, margin_end, margin_value):
 
 def get_callbacks(arguments, margin_value):
     if arguments.net.find('caps') != -1:
-        if "multi" in arguments.loss:
+        if arguments.out_classes > 1:
             monitor_name = 'val_out_seg_multiclass_dice_score'
         else:
             monitor_name = 'val_out_seg_dice_hard'
     else:
-        if "multi" in arguments.loss:
+        if arguments.out_classes > 1:
             monitor_name = 'val_multiclass_dice_score'
         else:
             monitor_name = 'val_dice_hard'
@@ -98,19 +102,19 @@ def compile_model(args, net_input_shape, uncomp_model, margin_value):
     opt = Adam(lr=args.initial_lr, beta_1=args.adam_b1, beta_2=0.999, decay=1e-6)
     
     if args.net.find('caps') != -1:
-        if "multi" in args.loss:
+        if args.out_classes > 1:
             metrics = {'out_seg': multiclass_dice_score_wrapper(from_logits=False)}
         else:
             metrics = {'out_seg': dice_hard}
         
     else:
-        if "multi" in args.loss:
+        if args.out_classes > 1:
             metrics = [multiclass_dice_score_wrapper(from_logits=True)]
         else:
             metrics = [dice_hard]
 
     loss, loss_weighting = get_loss(root=args.data_root_dir, split=args.split_num, net=args.net,
-                                    recon_wei=args.recon_wei, choice=args.loss, margin_value=margin_value)
+                                    recon_wei=args.recon_wei, choice=args.loss, num_classes=args.out_classes, margin_value=margin_value)
 
     # If using CPU or single GPU
     if args.gpus <= 1:
@@ -135,14 +139,14 @@ def plot_training(training_history, arguments):
 
     if arguments.net.find('caps') != -1:
 
-        if "multi" in arguments.loss:
+        if args.out_classes > 1:
             ax1.plot(training_history.history['out_seg_multiclass_dice_score'])
             ax1.plot(training_history.history['val_out_seg_multiclass_dice_score'])
         else:
             ax1.plot(training_history.history['out_seg_dice_hard'])
             ax1.plot(training_history.history['val_out_seg_dice_hard'])
     else:
-        if "multi" in arguments.loss:
+        if args.out_classes > 1:
             ax1.plot(training_history.history['multiclass_dice_score'])
             ax1.plot(training_history.history['val_multiclass_dice_score'])
         else:

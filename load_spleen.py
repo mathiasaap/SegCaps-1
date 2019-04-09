@@ -22,8 +22,8 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
         pass
 
 
-    ct_min = -1024.0
-    ct_max = 3072.0
+    ct_min = -80 #-1024.0
+    ct_max = 170 #3072.0
     #Spleen Min: [-1024.0]
     #Spleen Max: [3072.0]
     #mean = np.array([-541.1801174550513])
@@ -79,19 +79,25 @@ def convert_spleen_data_to_numpy(root_path, img_name, no_masks=False, overwrite=
 
             ax[0].imshow(img[:, :, img.shape[2] // 3], cmap='gray')
             if not no_masks:
-                ax[0].imshow(mask[:, :, img.shape[2] // 3, 1], alpha=0.40, cmap='Reds')
+                masking = mask[:, :, img.shape[2] // 3, 1]
+                masking = np.ma.masked_where(masking == 0, masking)
+                ax[0].imshow(masking, alpha=0.7, cmap='Reds', vmin=0, vmax=1)
             ax[0].set_title('Slice {}/{}'.format(img.shape[2] // 3, img.shape[2]))
             ax[0].axis('off')
 
             ax[1].imshow(img[:, :, img.shape[2] // 2], cmap='gray')
             if not no_masks:
-                ax[1].imshow(mask[:, :, img.shape[2] // 2, 1], alpha=0.40, cmap='Reds')
+                masking= mask[:, :, img.shape[2] // 2, 1]
+                masking = np.ma.masked_where(masking == 0, masking)
+                ax[1].imshow(masking, alpha=0.7, cmap='Reds',vmin=0, vmax=1)
             ax[1].set_title('Slice {}/{}'.format(img.shape[2] // 2, img.shape[2]))
             ax[1].axis('off')
 
             ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4], cmap='gray')
             if not no_masks:
-                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 1], alpha=0.40, cmap='Reds')
+                masking = mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 1]
+                masking = np.ma.masked_where(masking == 0, masking)
+                ax[2].imshow(masking, alpha=0.7, cmap='Reds',vmin=0, vmax=1)
             ax[2].set_title('Slice {}/{}'.format(img.shape[2] // 2 + img.shape[2] // 4, img.shape[2]))
             ax[2].axis('off')
 

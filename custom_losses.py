@@ -13,13 +13,13 @@ import tensorflow as tf
 
 def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2,3)):
     if from_logits:
-        pass
         #y_pred = tf.nn.softmax(y_pred, axis=3)
+        pass
     else:
         pass
         # Segcaps uses maximum margin dice
         #y_pred = tf.math.minimum(y_true * y_pred, 1) + ((1-y_true) * y_pred)
-
+        pass
     eps = 1e-5
 
     intersection = tf.reduce_sum(y_pred * y_true, axis=axis)
