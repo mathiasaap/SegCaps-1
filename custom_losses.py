@@ -11,7 +11,7 @@ This file contains the definitions of custom loss functions not present in the d
 
 import tensorflow as tf
 
-def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2)):
+def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2,3)):
     if from_logits:
         pass
         #y_pred = tf.nn.softmax(y_pred, axis=3)
@@ -29,13 +29,25 @@ def multiclass_dice(y_true, y_pred, from_logits=False,axis=(1,2)):
 
 def multiclass_dice_loss_wrapper(from_logits=False):
     def multiclass_dice_loss(y_true, y_pred):
-        return 1-multiclass_dice(y_true, y_pred, from_logits=from_logits)
+        return 1-multiclass_dice(y_true, y_pred, from_logits=from_logits, axis=(1,2,3))
     return multiclass_dice_loss
 
 def multiclass_dice_score_wrapper(from_logits=False):
     def multiclass_dice_score(y_true, y_pred):
-        return multiclass_dice(y_true, y_pred, from_logits=from_logits)
+        return multiclass_dice(y_true, y_pred, from_logits=from_logits, axis=(1,2))
     return multiclass_dice_score
+
+def spread_loss_wrapper(m):
+    def spread_loss(y_true, y_pred):
+        y_true = tf.expand_dims(y_true, axis=-1)
+        y_pred = tf.expand_dims(y_pred, axis=-2)
+        at = tf.matmul(y_pred, y_true)
+        loss = tf.square(tf.maximum(0., m - (at - y_pred)))
+        loss = tf.matmul(loss, 1. - y_true)
+        loss = tf.reduce_mean(loss)
+        return loss
+    return spread_loss
+    
 
 def dice_soft(y_true, y_pred, loss_type='sorensen', axis=[1,2,3], smooth=1e-5, from_logits=False):
     """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity

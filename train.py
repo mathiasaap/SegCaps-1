@@ -22,16 +22,16 @@ from keras.optimizers import Adam
 from keras import backend as K
 K.set_image_data_format('channels_last')
 from keras.utils.training_utils import multi_gpu_model
-from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard, LearningRateScheduler
+from keras.callbacks import ModelCheckpoint, CSVLogger, EarlyStopping, ReduceLROnPlateau, TensorBoard, LearningRateScheduler, LambdaCallback
 import tensorflow as tf
 
-from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss_wrapper, multiclass_dice_score_wrapper
+from custom_losses import dice_hard, weighted_binary_crossentropy_loss, dice_loss, margin_loss, multiclass_dice_loss_wrapper, multiclass_dice_score_wrapper, spread_loss_wrapper
 from load_data_multiclass import load_class_weights, generate_train_batches, generate_val_batches
 
 
 init_adam_lr = 1
 
-def get_loss(root, split, net, recon_wei, choice):
+def get_loss(root, split, net, recon_wei, choice, margin_value):
     if choice == 'w_bce':
         pos_class_weight = load_class_weights(root=root, split=split)
         loss = weighted_binary_crossentropy_loss(pos_class_weight)
@@ -41,6 +41,8 @@ def get_loss(root, split, net, recon_wei, choice):
         loss = dice_loss
     elif choice == 'multi_dice':
         loss = multiclass_dice_loss_wrapper(from_logits=net.find('caps') == -1)
+    elif choice == 'multi_spread':
+        loss = spread_loss_wrapper(margin_value)
     elif choice == 'w_mar':
         pos_class_weight = load_class_weights(root=root, split=split)
         loss = margin_loss(margin=0.4, downweight=0.5, pos_weight=pos_class_weight)
@@ -57,7 +59,13 @@ def get_loss(root, split, net, recon_wei, choice):
 def schedule_lr(epoch):
     return init_adam_lr * (0.98 ** epoch)
 
-def get_callbacks(arguments):
+def update_margin_wrapper(total_epochs, margin_start, margin_end, margin_value):
+    def update_margin(epoch, logs):
+        val = (margin_end-margin_start)* (float(epoch)/total_epochs) + margin_start
+        margin_value.assign(val)
+    return update_margin
+
+def get_callbacks(arguments, margin_value):
     if arguments.net.find('caps') != -1:
         if "multi" in arguments.loss:
             monitor_name = 'val_out_seg_multiclass_dice_score'
@@ -80,10 +88,12 @@ def get_callbacks(arguments):
     lr_reducer = ReduceLROnPlateau(monitor=monitor_name, factor=0.7, cooldown=0, patience=5,verbose=1, mode='max')
     #sched_lr = LearningRateScheduler(schedule_lr, verbose=1)
     early_stopper = EarlyStopping(monitor=monitor_name, min_delta=0, patience=100, verbose=0, mode='max')
+    
+    update_margin_cb = LambdaCallback(on_epoch_end=update_margin_wrapper(arguments.epochs, 0.2, 0.9, margin_value))
 
-    return [model_checkpoint, model_checkpoint_last, csv_logger, lr_reducer, early_stopper, tb]
+    return [model_checkpoint, model_checkpoint_last, csv_logger, lr_reducer, early_stopper, tb, update_margin_cb]
 
-def compile_model(args, net_input_shape, uncomp_model):
+def compile_model(args, net_input_shape, uncomp_model, margin_value):
     # Set optimizer loss and metrics
     opt = Adam(lr=args.initial_lr, beta_1=args.adam_b1, beta_2=0.999, decay=1e-6)
     
@@ -100,7 +110,7 @@ def compile_model(args, net_input_shape, uncomp_model):
             metrics = [dice_hard]
 
     loss, loss_weighting = get_loss(root=args.data_root_dir, split=args.split_num, net=args.net,
-                                    recon_wei=args.recon_wei, choice=args.loss)
+                                    recon_wei=args.recon_wei, choice=args.loss, margin_value=margin_value)
 
     # If using CPU or single GPU
     if args.gpus <= 1:
@@ -171,7 +181,8 @@ DEBUG = False
 def train(args, train_list, val_list, u_model, net_input_shape, num_output_classes=2):
     # Compile the loaded model
     global init_adam_lr
-    model, opt = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model)
+    margin_value = tf.Variable(0.2, trainable=False)
+    model, opt = compile_model(args=args, net_input_shape=net_input_shape, uncomp_model=u_model, margin_value=margin_value)
     if args.weights_path:
         weights_path = join(args.data_root_dir, args.weights_path)
         try:
@@ -180,7 +191,7 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
         except:
             assert False, 'Unable to find weights path.'
     # Set the callbacks
-    callbacks = get_callbacks(args)
+    callbacks = get_callbacks(args, margin_value)
     init_adam_lr = opt.get_config()['lr']
     #val_list = train_list
     
@@ -190,15 +201,22 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
                                    batchSize=args.batch_size, numSlices=args.slices, subSampAmt=args.subsamp,
                                    stride=args.stride, shuff=args.shuffle_data, aug_data=args.aug_data, dataset=args.dataset, num_output_classes=num_output_classes)
         #import random
+        import random
         for batch in batch_gen:
             imgs, masks = batch
-            single_img = imgs[0][0]
-            single_mask = masks[0][0]
-            #print(imgs.shape)
-            #if random.randint(0,1) > 0.9:
-            break
+            print(imgs.shape)
+            segcaps = False
+            if segcaps:
+                single_img = imgs[0][0]
+                single_mask = masks[0][0]
+            else:
+                single_img = imgs[0]
+                single_mask = masks[0]
+            print(imgs.shape)
+            if random.randint(0,1) > 0.9:
+                break
 
-
+        print(single_img)
         f, ax = plt.subplots(1, 2, figsize=(15, 5))
         ax[0].imshow(single_img[:, :, 0], alpha=1, cmap='gray')
         #ax[0].imshow(output_bin[num_slices // 3, :, :], alpha=0.5, cmap='Blues')
@@ -224,7 +242,7 @@ def train(args, train_list, val_list, u_model, net_input_shape, num_output_class
         plt.savefig(join("figz/", 'img_mask_fig' + '.png'),
                     format='png', bbox_inches='tight')
         plt.close('all') 
-        
+        assert False
         for line in range(single_mask.shape[0]):
             for col in range(single_mask.shape[1]):
                 print(single_mask[line,col], end=" ")

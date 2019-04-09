@@ -139,7 +139,7 @@ if __name__ == '__main__':
                         help='Whether or not to shuffle the training data (both per epoch and in slice order.')
     parser.add_argument('--aug_data', type=int, default=1, choices=[0,1],
                         help='Whether or not to use data augmentation during training.')
-    parser.add_argument('--loss', type=str.lower, default='multi_dice', choices=['bce', 'w_bce', 'dice', 'mar', 'w_mar', 'multi_dice'],
+    parser.add_argument('--loss', type=str.lower, default='multi_dice', choices=['bce', 'w_bce', 'dice', 'mar', 'w_mar', 'multi_dice', 'multi_spread'],
                         help='Which loss to use. "bce" and "w_bce": unweighted and weighted binary cross entropy'
                              '"dice": soft dice coefficient, "mar" and "w_mar": unweighted and weighted margin loss.')
     parser.add_argument('--batch_size', type=int, default=1,
