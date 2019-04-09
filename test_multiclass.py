@@ -24,6 +24,7 @@ import numpy as np
 import scipy.ndimage.morphology
 from skimage import measure, filters
 from metrics import dc, jc, assd, jaccard
+import math
 
 from keras import backend as K
 K.set_image_data_format('channels_last')
@@ -146,6 +147,8 @@ def test(args, test_list, model_list, net_input_shape):
         RESOLUTION = 32
     else:
         RESOLUTION = 512
+    
+    RESOLUTION_X = RESOLUTION_Y = RESOLUTION
 
     output_dir = join(args.data_root_dir, 'results', args.net, 'split_' + str(args.split_num))
     raw_out_dir = join(output_dir, 'raw_output')
@@ -232,23 +235,42 @@ def test(args, test_list, model_list, net_input_shape):
                                                         steps=num_slices, max_queue_size=1, workers=1,
                                                         use_multiprocessing=False, verbose=1)
 
+            raw_x_shape = img_data.shape[1]
+            raw_y_shape = img_data.shape[2]
+            print(img_data.shape)
+            RESOLUTION_Y,RESOLUTION_X = raw_x_shape, raw_y_shape
+            frame_pixels_0 = int(math.floor((48.0 - raw_x_shape)/2))
+            frame_pixels_1 = 48-int(math.ceil((48.0 - raw_x_shape)/2))
+            
+            frame_pixels_0_2 = int(math.floor((48.0 - raw_y_shape)/2))
+            frame_pixels_1_2 = 48-int(math.ceil((48.0 - raw_y_shape)/2))
+            
             print('out' + str(output_array[0].shape))
             if args.net.find('caps') != -1:
                 if args.dataset == 'brats':
                     output = output_array[0][:,8:-8,8:-8]
                     recon = output_array[1][:,8:-8,8:-8]
+                elif args.dataset == 'hippocampus':
+                    output = output_array[0][:,frame_pixels_0:frame_pixels_1,frame_pixels_0_2:frame_pixels_1_2]
+                    recon = output_array[1][:,frame_pixels_0:frame_pixels_1,frame_pixels_0_2:frame_pixels_1_2]
                 else:
                     output = output_array[0][:,:,:]
                     recon = output_array[1][:,:,:]
             else:
                 if args.dataset == 'brats':
                     output = output_array[:,8:-8,8:-8,:]
+                elif args.dataset == 'hippocampus':
+                    print(output_array.shape)
+                    output = output_array[:,frame_pixels_0:frame_pixels_1,frame_pixels_0_2:frame_pixels_1_2]
                 else:
                     output = output_array[:,:,:,:]
+                    
+            print(output.shape)
+            print(img_data.shape)
 
 
             if args.out_classes == 1:
-                output_raw = output.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
+                output_raw = output.reshape(-1,RESOLUTION_X,RESOLUTION_Y,1) #binary
             else:
                 output_raw = output
                 output = oneHot2LabelMax(output)
@@ -256,7 +278,7 @@ def test(args, test_list, model_list, net_input_shape):
             out = output.astype(np.int64)
 
             if args.out_classes == 1:
-                outputOnehot = out.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
+                outputOnehot = out.reshape(-1,RESOLUTION_X,RESOLUTION_Y,1) #binary
             else:
                 if args.dataset == 'hippocampus':
                     out[np.where(out>(args.out_classes-1)) ] = 1
@@ -271,7 +293,7 @@ def test(args, test_list, model_list, net_input_shape):
 
             output_mask = sitk.GetImageFromArray(output_bin)
 
-            slice_img = sitk.Image(RESOLUTION,RESOLUTION,num_slices, sitk.sitkUInt8)
+            slice_img = sitk.Image(RESOLUTION_X,RESOLUTION_Y,num_slices, sitk.sitkUInt8)
 
             output_img.CopyInformation(slice_img)
             output_mask.CopyInformation(slice_img)
@@ -294,7 +316,7 @@ def test(args, test_list, model_list, net_input_shape):
                 label = gt_data.astype(np.int64)
 
                 if args.out_classes == 1:
-                    gtOnehot = label.reshape(-1,RESOLUTION,RESOLUTION,1) #binary
+                    gtOnehot = label.reshape(-1,RESOLUTION_X,RESOLUTION_Y,1) #binary
                     gt_label = label
                 else:
                     if args.dataset == 'hippocampus':

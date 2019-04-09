@@ -216,6 +216,7 @@ class DeconvCapsuleLayer(layers.Layer):
         activation = tf.reshape(activation, shape=[1,height, width, self.num_capsule, 1])
         output = tf.reshape(tf.concat([pose, activation], axis=4), [1, height, width, -1])
         return output
+
     
     
     
@@ -238,6 +239,8 @@ class OutputCapsuleLayer(layers.Layer):
         out_reshaped = layers.Reshape((self.input_height, self.input_width, self.out_classes, 17))(out_caps)
         activations = Lambda(lambda out_reshaped: out_reshaped[:, :, :, :, -1])(out_reshaped)
         return activations
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[1], input_shape[2], self.out_classes)
 
         
         

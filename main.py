@@ -49,10 +49,18 @@ def main(args):
     if args.dataset == 'brats':
         args.modalities = 4
         net_input_shape = (256, 256, args.slices*args.modalities)
-    #if args.dataset == 'hippocampus':
-    #    args.modalities = 1
-    #    net_input_shape = (35, 35, args.slices*args.modalities)
-    # Create the model for training/testing/manipulation
+    if args.dataset == 'hippocampus':
+        if args.train and args.test:
+            assert False, "Hippocampus does not support training and testing at the same time"
+            
+        if args.test:
+            in_shape = 48
+            if args.net == "isensee":
+                in_shape = 64
+            net_input_shape = (in_shape, in_shape, args.slices*args.modalities)
+        else:
+            net_input_shape = (32, 32, args.slices*args.modalities)
+            
     model_list = create_model(args=args, input_shape=net_input_shape)
     print(model_list)
     print_summary(model=model_list[0], positions=[.38, .65, .75, 1.])
@@ -119,7 +127,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_splits', type=int, default=2,
                         help='Number of training splits to create.')
     parser.add_argument('--net', type=str.lower, default='segcapsr3',
-                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'emseg', 'unet', 'tiramisu', 'isensee', 'binarycaps'],
+                        choices=['segcapsr3', 'segcapsr1', 'segcapsbasic', 'emseg', 'emsegbasic', 'unet', 'tiramisu', 'isensee', 'binarycaps'],
                         help='Choose your network.')
     parser.add_argument('--train', type=int, default=1, choices=[0,1],
                         help='Set to 1 to enable training.')

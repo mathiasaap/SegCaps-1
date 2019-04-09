@@ -36,6 +36,7 @@ from postprocess import oneHot2LabelMax
 from augmentation import augment_random, elasticDeform2D, elasticDeform3D
 
 from scipy import linalg
+import math
 
 import matplotlib
 matplotlib.use('Agg')
@@ -488,20 +489,21 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
     print('\nload_3D_data.generate_test_batches')
     print("Batch size {}".format(batchSize))
     img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
+    print(img_batch.shape)
     modalities = net_input_shape[2] // numSlices
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
 
     if dataset == 'brats':
         np_converter = convert_brats_data_to_numpy
-        frame_pixels_0 = 8
-        frame_pixels_1 = -8
+        frame_pixels_0 = frame_pixels_0_2 = 8
+        frame_pixels_1 = frame_pixels_1_2 = -8
         raw_x_shape = 240
         raw_y_shape = 240
     elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
         np_converter = get_np_converter(dataset)
-        frame_pixels_0 = 0
-        frame_pixels_1 = net_input_shape[0]
+        frame_pixels_0 = frame_pixels_0_2 = 0
+        frame_pixels_1 = frame_pixels_1_2 = net_input_shape[0]
         raw_x_shape = net_input_shape[0]
         raw_y_shape = net_input_shape[1]
     else:
@@ -532,6 +534,20 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
 
         z_shape = test_img.shape[2]
         indicies = np.arange(0, z_shape, stride)
+        
+        if dataset == 'hippocampus':
+            raw_x_shape = test_img.shape[0]
+            raw_y_shape = test_img.shape[1]
+            print(test_img.shape)
+            frame_pixels_0 = int(math.floor((48.0 - raw_x_shape)/2))
+            frame_pixels_1 = 48-int(math.ceil((48.0 - raw_x_shape)/2))
+            
+            frame_pixels_0_2 = int(math.floor((48.0 - raw_y_shape)/2))
+            frame_pixels_1_2 = 48-int(math.ceil((48.0 - raw_y_shape)/2))
+            
+            print(frame_pixels_0, frame_pixels_1)
+            print(frame_pixels_0_2, frame_pixels_1_2)
+
 
         for j in indicies:
             if img_batch.ndim == 4:
@@ -543,11 +559,11 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
                     insertion_index += modalities
                     if (k < 0): continue
                     if (k >= z_shape): break
-                    img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
+                    img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0_2:frame_pixels_1_2, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
                     img_index += modalities
             elif img_batch.ndim == 5:
                 # Assumes img and mask are single channel. Replace 0 with : if multi-channel.
-                img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0:frame_pixels_1, :, :] = test_img[:, :,  j : j+numSlices]
+                img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0_2:frame_pixels_1_2, :, :] = test_img[:, :,  j : j+numSlices]
             else:
                 print('Error this function currently only supports 2D and 3D data.')
                 exit(0)
