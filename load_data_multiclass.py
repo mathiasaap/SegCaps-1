@@ -250,11 +250,11 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     else:
         assert False, 'Dataset not recognized'
 
+    is_binary_classification = num_output_classes == 1
     while True:
         if shuff:
             shuffle(train_list)
         count = 0
-        is_binary_classification = num_output_classes == 1
         for i, scan_name in enumerate(train_list):
             try:
                 scan_name = scan_name[0]
@@ -415,6 +415,8 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
     else:
         assert False, 'Dataset not recognized'
 
+    is_binary_classification = num_output_classes == 1
+    
     while True:
         if shuff:
             shuffle(val_list)
@@ -448,8 +450,8 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
                 shuffle(indicies)
 
             for j in indicies:
-                #if not np.any(val_mask[:, :,  j:j+numSlices]):
-                #    continue
+                if (is_binary_classification and np.sum(val_mask[:, :, j]) < 1) or (not is_binary_classification and np.sum(val_mask[:, :, j, 1:]) < 1):
+                    continue
                 if img_batch.ndim == 4:
                     img_batch[count] = 0
                     next_img = val_img[:, :, max(j-sideSlices,0):min(j+sideSlices+1,z_shape)].reshape(raw_x_shape, raw_y_shape, -1)
