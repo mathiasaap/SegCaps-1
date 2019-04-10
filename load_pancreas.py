@@ -24,8 +24,8 @@ def convert_pancreas_data_to_numpy(root_path, img_name, no_masks=False, overwrit
     #Min: [-2048.0]
     #Max: [4009.0]
 
-    ct_min = -2048.0
-    ct_max = 4009.0
+    ct_min = -142.0
+    ct_max = 208.0
     #Spleen Min: [-1024.0]
     #Spleen Max: [3072.0]
     #mean = np.array([-541.1801174550513])

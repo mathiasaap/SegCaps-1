@@ -339,8 +339,8 @@ def test(args, test_list, model_list, net_input_shape):
                 print(img_data.shape)
                 print(outputOnehot.shape)
                 if args.dataset == 'brats':
-                    img_data = img_data[3]
-                    #img_data = img_data[:,:,:,3]
+                    #img_data = img_data[3] #caps?
+                    img_data = img_data[:,:,:,3] #isensee
 
                 # Prediction plots
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
