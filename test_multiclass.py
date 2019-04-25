@@ -31,6 +31,9 @@ K.set_image_data_format('channels_last')
 from keras.utils import print_summary
 from msd_metrics import compute_dice_coefficient, compute_surface_dice_at_tolerance, compute_surface_distances, compute_surface_dice_at_tolerance
 
+from statistics import calc_confusion_matrix, calc_precision, calc_recall, calc_sorensen, class_stats
+
+
 
 from load_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
@@ -195,7 +198,11 @@ def test(args, test_list, model_list, net_input_shape):
         outfile += 'assd_'
     surf_arr = np.zeros((len(test_list)), dtype=str)
     dice2_arr = np.zeros((len(test_list), args.out_classes-1))
-
+    
+    precision_arr = np.zeros((len(test_list), args.out_classes-1))
+    recall_arr = np.zeros((len(test_list), args.out_classes-1))
+    
+    wholeMatrix = np.zeros(shape = (args.out_classes,args.out_classes), dtype=np.uint64)
     # Testing the network
     print('Testing... This will take some time...')
 
@@ -325,8 +332,8 @@ def test(args, test_list, model_list, net_input_shape):
                     gtOnehot = np.eye(args.out_classes)[label].astype(np.uint8)
                     gt_label = label
 
-                if args.net.find('caps') != -1:
-                    create_recon_image(args, recon, img_data, gtOnehot, i=i)
+                #if args.net.find('caps') != -1:
+                #    create_recon_image(args, recon, img_data, gtOnehot, i=i)
                 
                 create_activation_image(args, output_raw, gtOnehot, slice_num=output_raw.shape[0] // 2, index=i)
                 # Plot Qual Figure
@@ -339,8 +346,11 @@ def test(args, test_list, model_list, net_input_shape):
                 print(img_data.shape)
                 print(outputOnehot.shape)
                 if args.dataset == 'brats':
+                    print(img_data.shape)
                     #img_data = img_data[3] #caps?
                     img_data = img_data[:,:,:,3] #isensee
+                    print(img_data.shape)
+                    #assert False
 
                 # Prediction plots
                 ax[0,0].imshow(img_data[num_slices // 3, :, :], alpha=1, cmap='gray')
@@ -457,6 +467,7 @@ def test(args, test_list, model_list, net_input_shape):
                 assd_arr[i] = assd(outputOnehot, gtOnehot, voxelspacing=sitk_img.GetSpacing(), connectivity=1)
                 print('\tASSD: {}'.format(assd_arr[i]))
                 row.append(assd_arr[i])
+            """
             try:
                 spacing = np.array(sitk_img.GetSpacing())
                 if args.dataset == 'brats':
@@ -469,8 +480,15 @@ def test(args, test_list, model_list, net_input_shape):
             except:
                 print("surf failed")
                 pass
+            """
             #dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
             dice2_arr[i] = calc_dice_scores(output_label, gt_label, args.out_classes)
+            
+            matrix = calc_confusion_matrix(output_label, gt_label, args.out_classes)
+            wholeMatrix += matrix.astype(np.uint64)
+
+            #precision_arr[i] = calc_precision(matrix)
+            #recall_arr[i] = calc_recall(matrix)
             for score in dice2_arr[i]:
                 dice_row.append(score)
             dice_writer.writerow(dice_row)
@@ -499,6 +517,21 @@ def test(args, test_list, model_list, net_input_shape):
         
         writer.writerow(row)
         dice_results_csv.close()
+        
+       
+        stats = class_stats(wholeMatrix)
+
+        precisionWhole = calc_precision(stats)
+        recallWhole = calc_recall(stats)
+        diceWhole = calc_sorensen(stats)
+
+        
+        stats_csv = open(join(output_dir, 'statistics.csv'), 'wb')
+        stats_csv.write("Precision,{}\n".format(",".join([str(v) for v in precisionWhole])))
+        stats_csv.write("Recall,{}\n".format(",".join([str(v) for v in recallWhole])))
+        stats_csv.write("Dice,{}\n".format(",".join([str(v) for v in diceWhole])))
+        stats_csv.close()
+        
       
 
     print('Done.')
