@@ -28,7 +28,7 @@ def calc_sorensen(stats):
             res.append(float(2.0*tp)/(2.0*tp + fp + fn))
     return res
 
-def calc_confusion_matrix(output_label, gt_label, out_classes, labelAxis=None):
+def calc_confusion_matrix(output_label, gt_label, labelAxis=None):
     elements = output_label.shape[0]*output_label.shape[1]
     pred_flat = output_label.reshape((-1))
     label_flat = gt_label.reshape((-1))
