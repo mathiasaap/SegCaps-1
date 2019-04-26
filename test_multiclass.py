@@ -11,6 +11,7 @@ This file is used for testing models. Please see the README for details about te
 from __future__ import print_function
 
 import matplotlib
+from matplotlib.colors import LinearSegmentedColormap
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
@@ -37,6 +38,50 @@ from statistics import calc_confusion_matrix, calc_precision, calc_recall, calc_
 
 from load_data_multiclass import generate_test_batches
 from postprocess import oneHot2LabelMin, oneHot2LabelMax
+
+
+def create_color_map(dataset):
+    green = {'red':   ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 1.0, 1.0)),
+
+         'blue':  ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+    
+    red = {'red':   ((0.0, 0.0, 0.0),
+               (1.0, 1.0, 1.0)),
+
+     'green': ((0.0, 0.0, 0.0),
+               (1.0, 0.0, 0.0)),
+
+     'blue':  ((0.0, 0.0, 0.0),
+               (1.0, 0.0, 0.0))}
+        
+    blue = {'red':   ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 0.0),
+                   (1.0, 1.0, 1.0))}
+    
+    colors = ["Greys"]
+    if dataset == "brats":
+        colors.append(LinearSegmentedColormap('Blue', blue))
+        colors.append(LinearSegmentedColormap('Red', red))
+        colors.append(LinearSegmentedColormap('Green', green))
+        
+    else:
+        colors.append(LinearSegmentedColormap('Green', green))
+        colors.append(LinearSegmentedColormap('Red', red))
+        colors.append(LinearSegmentedColormap('Blue', blue))
+    return colors
+    
+    
 
 def create_activation_image(args, raw_data, label, slice_num = 77, index=0):
     if raw_data.shape[3] == 1:
@@ -205,6 +250,8 @@ def test(args, test_list, model_list, net_input_shape):
     wholeMatrix = np.zeros(shape = (args.out_classes,args.out_classes), dtype=np.uint64)
     # Testing the network
     print('Testing... This will take some time...')
+    
+    colors = create_color_map(args.dataset)
 
     with open(join(output_dir, args.save_prefix + outfile + 'scores.csv'), 'wb') as csvfile:
         writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -340,7 +387,7 @@ def test(args, test_list, model_list, net_input_shape):
                 print('Creating Qualitative Figure for Quick Reference')
                 f, ax = plt.subplots(2, 3, figsize=(10, 5))
 
-                colors = ['Greys', 'Greens', 'Reds', 'Blues']
+                #colors = ['Greys', 'Greens', 'Reds', 'Blues']
                 fileTypeLength = 7
 
                 print(img_data.shape)
@@ -357,7 +404,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, outputOnehot.shape[3]):
                     mask = outputOnehot[num_slices // 3, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[0,0].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[0,0].imshow(mask, alpha=0.6, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
@@ -365,7 +412,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, outputOnehot.shape[3]):
                     mask = outputOnehot[num_slices // 2, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[0,1].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[0,1].imshow(mask, alpha=0.6, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[0,1].axis('off')
 
@@ -373,7 +420,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, outputOnehot.shape[3]):
                     mask = outputOnehot[num_slices // 2 + num_slices // 4, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[0,2].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[0,2].imshow(mask, alpha=0.6, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[0,2].axis('off')
@@ -384,7 +431,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, gtOnehot.shape[3]):
                     mask = gtOnehot[num_slices // 3, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[1,0].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[1,0].imshow(mask, alpha=0.6, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
@@ -392,7 +439,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, gtOnehot.shape[3]):
                     mask = gtOnehot[num_slices // 2, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[1,1].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[1,1].imshow(mask, alpha=0.6, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
@@ -401,7 +448,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, gtOnehot.shape[3]):
                     mask = gtOnehot[num_slices // 2 + num_slices // 4, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[1,2].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[1,2].imshow(mask, alpha=0.6, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,2].axis('off')
 
                 fig = plt.gcf()
