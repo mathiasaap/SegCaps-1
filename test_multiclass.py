@@ -357,7 +357,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, outputOnehot.shape[3]):
                     mask = outputOnehot[num_slices // 3, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[0,0].imshow(mask, alpha=0.7, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[0,0].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,0].set_title('Slice {}/{}'.format(num_slices // 3, num_slices))
                 ax[0,0].axis('off')
 
@@ -365,7 +365,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, outputOnehot.shape[3]):
                     mask = outputOnehot[num_slices // 2, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[0,1].imshow(mask, alpha=0.7, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[0,1].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,1].set_title('Slice {}/{}'.format(num_slices // 2, num_slices))
                 ax[0,1].axis('off')
 
@@ -373,7 +373,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, outputOnehot.shape[3]):
                     mask = outputOnehot[num_slices // 2 + num_slices // 4, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[0,2].imshow(mask, alpha=0.7, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[0,2].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[0,2].set_title(
                     'Slice {}/{}'.format(num_slices // 2 + num_slices // 4, num_slices))
                 ax[0,2].axis('off')
@@ -384,7 +384,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, gtOnehot.shape[3]):
                     mask = gtOnehot[num_slices // 3, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[1,0].imshow(mask, alpha=0.7, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[1,0].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,0].axis('off')
 
                 ax[1,1].imshow(img_data[num_slices // 2, :, :], alpha=1, cmap='gray')
@@ -392,7 +392,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, gtOnehot.shape[3]):
                     mask = gtOnehot[num_slices // 2, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[1,1].imshow(mask, alpha=0.7, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[1,1].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,1].axis('off')
 
                 ax[1,2].imshow(img_data[num_slices // 2 + num_slices // 4, :, :], alpha=1, cmap='gray')
@@ -401,7 +401,7 @@ def test(args, test_list, model_list, net_input_shape):
                 for class_num in range(1, gtOnehot.shape[3]):
                     mask = gtOnehot[num_slices // 2 + num_slices // 4, :, :, class_num]
                     mask = np.ma.masked_where(mask == 0, mask)
-                    ax[1,2].imshow(mask, alpha=0.7, cmap=colors[class_num], vmin = 0, vmax = 1)
+                    ax[1,2].imshow(mask, alpha=1.0, cmap=colors[class_num], vmin = 0, vmax = 1)
                 ax[1,2].axis('off')
 
                 fig = plt.gcf()
