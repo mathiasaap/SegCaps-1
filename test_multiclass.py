@@ -484,7 +484,7 @@ def test(args, test_list, model_list, net_input_shape):
             #dice2_arr[i] = compute_dice_coefficient(gtOnehot, outputOnehot)
             dice2_arr[i] = calc_dice_scores(output_label, gt_label, args.out_classes)
             
-            matrix = calc_confusion_matrix(output_label, gt_label, labelAxis=[i for i in range(args.out_classes)])
+            matrix = calc_confusion_matrix(output_label, gt_label, labelAxis=[class_i for class_i in range(args.out_classes)])
             wholeMatrix += matrix.astype(np.uint64)
 
             #precision_arr[i] = calc_precision(matrix)
