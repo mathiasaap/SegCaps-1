@@ -32,6 +32,7 @@ from load_hepatic import convert_hepatic_data_to_numpy
 from load_colon import convert_colon_data_to_numpy
 from load_pancreas import convert_pancreas_data_to_numpy
 from load_hippocampus import convert_hippo_data_to_numpy
+from load_liver import convert_liver_data_to_numpy
 from postprocess import oneHot2LabelMax
 from augmentation import augment_random, elasticDeform2D, elasticDeform3D
 
@@ -216,6 +217,8 @@ def get_np_converter(dataset):
         return convert_pancreas_data_to_numpy
     elif dataset == 'hippocampus':
         return convert_hippo_data_to_numpy
+    elif dataset == 'liver':
+        return convert_liver_data_to_numpy
     else:
         return convert_spleen_data_to_numpy
         
@@ -248,7 +251,7 @@ def generate_train_batches(root_path, train_list, net_input_shape, net, batchSiz
     #    raw_x_shape = 35
     #    raw_y_shape = 35
         
-    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
+    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus', 'liver']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
@@ -413,7 +416,7 @@ def generate_val_batches(root_path, val_list, net_input_shape, net, batchSize=1,
         empty_mask = np.array([one_hot_max, 1-one_hot_max, 1-one_hot_max, 1-one_hot_max])
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
+    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus', 'liver']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = 0
         frame_pixels_1 = net_input_shape[0]
@@ -540,7 +543,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         frame_pixels_1 = frame_pixels_1_2 = -8
         raw_x_shape = 240
         raw_y_shape = 240
-    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus']:
+    elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus', 'liver']:
         np_converter = get_np_converter(dataset)
         frame_pixels_0 = frame_pixels_0_2 = 0
         frame_pixels_1 = frame_pixels_1_2 = net_input_shape[0]
