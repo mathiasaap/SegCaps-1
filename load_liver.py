@@ -2,9 +2,52 @@ import numpy as np
 from os.path import join, basename
 import SimpleITK as sitk
 import matplotlib
+from matplotlib.colors import LinearSegmentedColormap
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.ioff()
+
+
+def create_color_map(dataset):
+    green = {'red':   ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 1.0, 1.0)),
+
+         'blue':  ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+    
+    red = {'red':   ((0.0, 0.0, 0.0),
+               (1.0, 1.0, 1.0)),
+
+     'green': ((0.0, 0.0, 0.0),
+               (1.0, 0.0, 0.0)),
+
+     'blue':  ((0.0, 0.0, 0.0),
+               (1.0, 0.0, 0.0))}
+        
+    blue = {'red':   ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 0.0),
+                   (1.0, 1.0, 1.0))}
+    
+    colors = ["Greys"]
+    if dataset == "brats":
+        colors.append(LinearSegmentedColormap('Blue', blue))
+        colors.append(LinearSegmentedColormap('Red', red))
+        colors.append(LinearSegmentedColormap('Green', green))
+        
+    else:
+        colors.append(LinearSegmentedColormap('Green', green))
+        colors.append(LinearSegmentedColormap('Red', red))
+        colors.append(LinearSegmentedColormap('Blue', blue))
+    return colors
 
 def convert_liver_data_to_numpy(root_path, img_name, no_masks=False, overwrite=False, num_classes=3):
     fname = img_name[:-7]
@@ -77,26 +120,42 @@ def convert_liver_data_to_numpy(root_path, img_name, no_masks=False, overwrite=F
 
 
         try:
+            colors = create_color_map("liver")
             f, ax = plt.subplots(1, 3, figsize=(15, 5))
 
             ax[0].imshow(img[:, :, img.shape[2] // 3], cmap='gray')
             if not no_masks:
-                ax[0].imshow(mask[:, :, img.shape[2] // 3, 1], alpha=0.40, cmap='Reds')
-                ax[0].imshow(mask[:, :, img.shape[2] // 3, 2], alpha=0.40, cmap='Blues')
+                masking1 = mask[:, :, img.shape[2] // 3, 1]
+                masking1 = np.ma.masked_where(masking1 == 0, masking1)
+                ax[0].imshow(masking1, alpha=0.4, cmap=colors[1],vmin=0, vmax=1)
+                
+                masking2 = mask[:, :, img.shape[2] // 3, 2]
+                masking2 = np.ma.masked_where(masking2 == 0, masking2)
+                ax[0].imshow(masking2, alpha=0.4, cmap=colors[2],vmin=0, vmax=1)
             ax[0].set_title('Slice {}/{}'.format(img.shape[2] // 3, img.shape[2]))
             ax[0].axis('off')
 
             ax[1].imshow(img[:, :, img.shape[2] // 2], cmap='gray')
             if not no_masks:
-                ax[1].imshow(mask[:, :, img.shape[2] // 2, 1], alpha=0.40, cmap='Reds')
-                ax[1].imshow(mask[:, :, img.shape[2] // 2, 2], alpha=0.40, cmap='Blues')
+                masking1 = mask[:, :, img.shape[2] // 2, 1]
+                masking1 = np.ma.masked_where(masking1 == 0, masking1)
+                ax[1].imshow(masking1, alpha=0.4, cmap=colors[1],vmin=0, vmax=1)
+                
+                masking2 = mask[:, :, img.shape[2] // 2, 2]
+                masking2 = np.ma.masked_where(masking2 == 0, masking2)
+                ax[1].imshow(masking2, alpha=0.4, cmap=colors[2],vmin=0, vmax=1)
             ax[1].set_title('Slice {}/{}'.format(img.shape[2] // 2, img.shape[2]))
             ax[1].axis('off')
 
             ax[2].imshow(img[:, :, img.shape[2] // 2 + img.shape[2] // 4], cmap='gray')
             if not no_masks:
-                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 1], alpha=0.40, cmap='Reds')
-                ax[2].imshow(mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 2], alpha=0.40, cmap='Blues')
+                masking1 = mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 1]
+                masking1 = np.ma.masked_where(masking1 == 0, masking1)
+                ax[2].imshow(masking1, alpha=0.4, cmap=colors[1],vmin=0, vmax=1)
+                
+                masking2 = mask[:, :, img.shape[2] // 2 + img.shape[2] // 4, 2]
+                masking2 = np.ma.masked_where(masking2 == 0, masking2)
+                ax[2].imshow(masking2, alpha=0.4, cmap=colors[2],vmin=0, vmax=1)
             ax[2].set_title('Slice {}/{}'.format(img.shape[2] // 2 + img.shape[2] // 4, img.shape[2]))
             ax[2].axis('off')
 
