@@ -113,6 +113,7 @@ def main(args):
     if args.evaluate:
         from test_multiclass_decathlon import test
         test_list_eval = listdir(join(args.data_root_dir,"imgs"))
+        test_list_eval = [fn for fn in test_list_eval if fn[0] != "."]
         test_list_eval = [[s] for s in test_list_eval]
         current_split_num = args.split_num
         args.split_num = "testing"
