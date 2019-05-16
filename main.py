@@ -14,6 +14,7 @@ from __future__ import print_function
 from os.path import join
 from os import makedirs
 from os import environ
+from os import listdir
 import argparse
 import SimpleITK as sitk
 from time import gmtime, strftime
@@ -53,7 +54,7 @@ def main(args):
         if args.train and args.test:
             assert False, "Hippocampus does not support training and testing at the same time"
             
-        if args.test:
+        if args.test or args.evaluate:
             in_shape = 48
             if args.net == "isensee":
                 in_shape = 64
@@ -109,6 +110,14 @@ def main(args):
         else:
             from test_multiclass import test
             test(args, test_list, model_list, net_input_shape)
+    if args.evaluate:
+        from test_multiclass_decathlon import test
+        test_list_eval = listdir(join(args.data_root_dir,"imgs"))
+        test_list_eval = [[s] for s in test_list_eval]
+        current_split_num = args.split_num
+        args.split_num = "testing"
+        test(args, test_list_eval, model_list, net_input_shape)
+        args.split_num = current_split_num
 
     if args.manip:
         from manip import manip
@@ -133,6 +142,8 @@ if __name__ == '__main__':
                         help='Set to 1 to enable training.')
     parser.add_argument('--test', type=int, default=1, choices=[0,1],
                         help='Set to 1 to enable testing.')
+    parser.add_argument('--evaluate', type=int, default=1, choices=[0,1],
+                        help='Set to 1 to enable evalutation.')
     parser.add_argument('--manip', type=int, default=1, choices=[0,1],
                         help='Set to 1 to enable manipulation.')
     parser.add_argument('--shuffle_data', type=int, default=1, choices=[0,1],

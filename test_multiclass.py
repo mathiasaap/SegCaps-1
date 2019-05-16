@@ -347,14 +347,14 @@ def test(args, test_list, model_list, net_input_shape):
 
             print('Segmenting Output')
 
-            output_bin = threshold_mask(output, args.thresh_level)
+            output_bin = threshold_mask(output, args.thresh_level).astype(np.uint8)
 
             output_mask = sitk.GetImageFromArray(output_bin)
 
             slice_img = sitk.Image(RESOLUTION_X,RESOLUTION_Y,num_slices, sitk.sitkUInt8)
 
-            output_img.CopyInformation(slice_img)
-            output_mask.CopyInformation(slice_img)
+            output_img.CopyInformation(sitk_img)
+            output_mask.CopyInformation(sitk_img)
 
 
             #output_img.CopyInformation(sitk_img)
