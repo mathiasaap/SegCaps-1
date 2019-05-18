@@ -353,8 +353,8 @@ def test(args, test_list, model_list, net_input_shape):
 
             slice_img = sitk.Image(RESOLUTION_X,RESOLUTION_Y,num_slices, sitk.sitkUInt8)
 
-            output_img.CopyInformation(sitk_img)
-            output_mask.CopyInformation(sitk_img)
+            output_img.CopyInformation(slice_img)
+            output_mask.CopyInformation(slice_img)
 
 
             #output_img.CopyInformation(sitk_img)

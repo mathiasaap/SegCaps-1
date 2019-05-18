@@ -61,6 +61,10 @@ def main(args):
             net_input_shape = (in_shape, in_shape, args.slices*args.modalities)
         else:
             net_input_shape = (32, 32, args.slices*args.modalities)
+    
+    if args.net == 'isensee':
+        net_input_shape = list(net_input_shape)
+        net_input_shape[0] = net_input_shape[1] = None
             
     model_list = create_model(args=args, input_shape=net_input_shape)
     print(model_list)

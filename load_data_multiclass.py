@@ -531,8 +531,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
     print('Generate test batches for ' + str(dataset))
     print('\nload_3D_data.generate_test_batches')
     print("Batch size {}".format(batchSize))
-    img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
-    print(img_batch.shape)
+    #img_batch = np.zeros((np.concatenate(((batchSize,), net_input_shape))), dtype=np.float32)
     modalities = net_input_shape[2] // numSlices
     count = 0
     print('\nload_3D_data.generate_test_batches: test_list=%s'%(test_list))
@@ -562,7 +561,7 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
         except Exception as err:
             print(err)
             print('\nPre-made numpy array not found for {}.\nCreating now...'.format(scan_name[:-7]))
-            test_img = np_converter(root_path, scan_name, no_masks=False, num_classes=num_output_classes)[0]
+            test_img = np_converter(root_path, scan_name, no_masks=True, num_classes=num_output_classes)
             if np.array_equal(test_img,np.zeros(1)):
                 continue
             else:
@@ -574,10 +573,10 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
             if numSlices % 2 != 0:
                 numSlices -= 1
             sideSlices = numSlices / 2
-
+        print("Tha shape: {}".format(test_img.shape))
         z_shape = test_img.shape[2]
         indicies = np.arange(0, z_shape, stride)
-        
+
         if dataset == 'hippocampus':
             raw_x_shape = test_img.shape[0]
             raw_y_shape = test_img.shape[1]
@@ -590,8 +589,15 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
             
             print(frame_pixels_0, frame_pixels_1)
             print(frame_pixels_0_2, frame_pixels_1_2)
+        elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus', 'liver']:
+            raw_x_shape = test_img.shape[0]
+            raw_y_shape = test_img.shape[1]
+            frame_pixels_0 = frame_pixels_0_2 = 0
+            frame_pixels_1 = frame_pixels_1_2 = raw_x_shape
+        if 'liver_187' in scan_name:
+            test_img = np.rollaxis(test_img, 0, 3)
 
-
+        img_batch = np.zeros((np.concatenate(((batchSize,), (raw_x_shape,raw_y_shape,net_input_shape[2])))), dtype=np.float32)
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
@@ -602,6 +608,8 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
                     insertion_index += modalities
                     if (k < 0): continue
                     if (k >= z_shape): break
+                    #print(img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0_2:frame_pixels_1_2, insertion_index:insertion_index+modalities].shape)
+                    #print(next_img.shape)
                     img_batch[count, frame_pixels_0:frame_pixels_1, frame_pixels_0_2:frame_pixels_1_2, insertion_index:insertion_index+modalities] = next_img[:, :, img_index:img_index+modalities]
                     img_index += modalities
             elif img_batch.ndim == 5:
