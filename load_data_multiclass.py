@@ -586,18 +586,20 @@ def generate_test_batches(root_path, test_list, net_input_shape, batchSize=1, nu
             
             frame_pixels_0_2 = int(math.floor((48.0 - raw_y_shape)/2))
             frame_pixels_1_2 = 48-int(math.ceil((48.0 - raw_y_shape)/2))
+            img_shape_x = 48
+            img_shape_y = 48
             
             print(frame_pixels_0, frame_pixels_1)
             print(frame_pixels_0_2, frame_pixels_1_2)
-        elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'hippocampus', 'liver']:
+        elif dataset in ['heart', 'spleen', 'colon', 'hepatic', 'pancreas', 'liver']:
             raw_x_shape = test_img.shape[0]
             raw_y_shape = test_img.shape[1]
             frame_pixels_0 = frame_pixels_0_2 = 0
             frame_pixels_1 = frame_pixels_1_2 = raw_x_shape
-        if 'liver_187' in scan_name:
-            test_img = np.rollaxis(test_img, 0, 3)
+            img_shape_x = raw_x_shape
+            img_shape_y = raw_y_shape
 
-        img_batch = np.zeros((np.concatenate(((batchSize,), (raw_x_shape,raw_y_shape,net_input_shape[2])))), dtype=np.float32)
+        img_batch = np.zeros((np.concatenate(((batchSize,), (img_shape_x,img_shape_y,net_input_shape[2])))), dtype=np.float32)
         for j in indicies:
             if img_batch.ndim == 4:
                 img_batch[count] = 0
